@@ -1,4 +1,4 @@
-package: github.com/evergreen-ci/poplar
+package: github.com/evergreen-ci/timber
 import:
   - package: google.golang.org/grpc
   - package: golang.org/x/net
@@ -9,3 +9,4 @@ import:
   - package: github.com/mongodb/grip
   - package: github.com/pkg/errors
   - package: github.com/stretcher/testify
+  - package: github.com/evergreen-ci/aviation
