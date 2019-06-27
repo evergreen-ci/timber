@@ -128,12 +128,13 @@ $(buildDir)/output.lint:$(buildDir)/run-linter $(buildDir)/ .FORCE
 
 
 proto:vendor/cedar.proto
-	@mkdir -p rpc/internal
-	protoc --go_out=plugins=grpc:rpc/internal vendor/cedar.proto
-	mv rpc/internal/vendor/cedar.pb.go rpc/internal/cedar.pb.go
-	rm -rf rpc/internal/vendor
+	@mkdir -p buildlogger/internal
+	protoc --go_out=plugins=grpc:buildlogger/internal vendor/cedar.proto
+	mv buildlogger/internal/vendor/cedar.pb.go buildlogger/internal/cedar.pb.go
+	rm -rf buildlogger/internal/vendor
 clean:
-	rm -rf rpc/internal/*.pb.go
+	rm -rf buildlogger/internal/*.pb.go
+	rm vendor/cedar.proto
 
 vendor/cedar.proto:
 	curl -L https://raw.githubusercontent.com/evergreen-ci/cedar/master/buildlogger.proto -o $@

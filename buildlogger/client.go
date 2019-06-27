@@ -1,4 +1,4 @@
-package rpc
+package buildlogger
 
 import (
 	"context"
@@ -19,19 +19,17 @@ import (
 )
 
 type buildlogger struct {
-	ctx           context.Context
-	conn          *grpc.ClientConn
-	client        internal.BuildloggerClient
-	logID         string
-	buffer        []*internal.LogLine
-	exitCode      int32
-	local         send.Sender
-	maxBufferSize int
+	ctx      context.Context
+	opts     *BuildloggerOptions
+	conn     *grpc.ClientConn
+	client   internal.BuildloggerClient
+	buffer   []*internal.LogLine
+	exitCode int32
 	*send.Base
 }
 
 type BuildloggerOptions struct {
-	// Unique information to identify log
+	// Unique information to identify the log.
 	Project       string
 	Version       string
 	Variant       string
@@ -66,7 +64,10 @@ type BuildloggerOptions struct {
 	CertFile   string
 	KeyFile    string
 
-	format internal.LogFormat
+	logID       string
+	format      internal.LogFormat
+	exitCode    int32
+	exitCodeSet bool
 }
 
 func (opts *BuildloggerOptions) validate() error {
@@ -108,11 +109,24 @@ func (opts *BuildloggerOptions) validate() error {
 	return nil
 }
 
-func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts BuildloggerOptions) (send.Sender, chan int32, error) {
+func (opts *BuildloggerOptions) GetLogID() string {
+	return opts.logID
+}
+
+func (opts *BuildloggerOptions) SetExitCode(i int32) error {
+	if opts.exitcodeSet {
+		return errors.New("exit code has already been set for this buildlogger log")
+	}
+
+	opts.exitCode = i
+	opts.exitCodeSet = true
+}
+
+func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts BuildloggerOptions) (send.Sender, error) {
 	ts := time.Now()
 
 	if err := opts.validate(); err != nil {
-		return nil, nil, errors.Wrap(err, "invalid cedar buildlogger options")
+		return nil, errors.Wrap(err, "invalid cedar buildlogger options")
 	}
 
 	var conn *grpc.ClientConn
@@ -128,7 +142,7 @@ func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts Bui
 			var tlsConf *tls.Config
 			tlsConf, err = aviation.GetClientTLSConfig(opts.CAFile, opts.CertFile, opts.KeyFile)
 			if err != nil {
-				return nil, nil, errors.Wrap(err, "problem getting client TLS config")
+				return nil, errors.Wrap(err, "problem getting client TLS config")
 			}
 
 			rpcOpts = append(rpcOpts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConf)))
@@ -136,23 +150,22 @@ func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts Bui
 
 		conn, err := grpc.DialContext(ctx, opts.RPCAddress, rpcOpts...)
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "problem dialing rpc server")
+			return nil, errors.Wrap(err, "problem dialing rpc server")
 		}
 		opts.ClientConn = conn
 	}
 
 	b := &buildlogger{
-		ctx:           ctx,
-		conn:          conn,
-		client:        internal.NewBuildloggerClient(conn),
-		buffer:        []*internal.LogLine{},
-		local:         opts.Local,
-		maxBufferSize: opts.MaxBufferSize,
-		Base:          send.NewBase(name),
+		ctx:    ctx,
+		opts:   opts,
+		conn:   conn,
+		client: internal.NewBuildloggerClient(opts.ClientConn),
+		buffer: []*internal.LogLine{},
+		Base:   send.NewBase(name),
 	}
 
-	if err := b.SetErrorHandler(send.ErrorHandlerFromSender(b.local)); err != nil {
-		return nil, nil, errors.Wrap(err, "problem setting default error handler")
+	if err := b.SetErrorHandler(send.ErrorHandlerFromSender(b.opts.Local)); err != nil {
+		return nil, errors.Wrap(err, "problem setting default error handler")
 	}
 
 	data := &internal.LogData{
@@ -175,19 +188,12 @@ func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts Bui
 	}
 	resp, err := b.client.CreateLog(ctx, data)
 	if err != nil {
-		b.local.Send(message.NewErrorMessage(level.Error, err))
-		return nil, nil, errors.Wrap(err, "problem creating log")
+		b.opts.Local.Send(message.NewErrorMessage(level.Error, err))
+		return nil, errors.Wrap(err, "problem creating log")
 	}
-	b.logID = resp.LogId
+	b.opts.logID = resp.LogId
 
-	exit := make(chan int32)
-	go func() {
-		for {
-			b.exitCode = <-exit
-		}
-	}()
-
-	return b, exit, nil
+	return b, nil
 }
 
 func (b *buildlogger) Send(m message.Composer) {
@@ -201,7 +207,7 @@ func (b *buildlogger) Send(m message.Composer) {
 
 		if binary.Size(b.buffer)+binary.Size(logLine) > b.maxBufferSize {
 			if err := b.flush(); err != nil {
-				b.local.Send(message.NewErrorMessage(level.Error, err))
+				b.opts.Local.Send(message.NewErrorMessage(level.Error, err))
 				return
 			}
 		}
@@ -217,19 +223,19 @@ func (b *buildlogger) Close() error {
 
 	if len(b.buffer) > 0 {
 		if err := b.flush(); err != nil {
-			b.local.Send(message.NewErrorMessage(level.Error, err))
+			b.opts.Local.Send(message.NewErrorMessage(level.Error, err))
 			catcher.Add(errors.Wrap(err, "problem flushing buffer"))
 		}
 	}
 
 	if !catcher.HasErrors() {
 		endInfo := &internal.LogEndInfo{
-			LogId:       b.logID,
+			LogId:       b.opts.logID,
 			ExitCode:    b.exitCode,
 			CompletedAt: &timestamp.Timestamp{Seconds: ts.Unix(), Nanos: int32(ts.Nanosecond())},
 		}
 		_, err := b.client.CloseLog(b.ctx, endInfo)
-		b.local.Send(message.NewErrorMessage(level.Error, err))
+		b.opts.Local.Send(message.NewErrorMessage(level.Error, err))
 		catcher.Add(errors.Wrap(err, "problem closing log"))
 	}
 
@@ -242,7 +248,7 @@ func (b *buildlogger) Close() error {
 
 func (b *buildlogger) flush() error {
 	_, err := b.client.AppendLogLines(b.ctx, &internal.LogLines{
-		LogId: b.logID,
+		LogId: b.opts.logID,
 		Lines: b.buffer,
 	})
 	if err != nil {
