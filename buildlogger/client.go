@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/evergreen-ci/aviation"
-	"github.com/evergreen-ci/timber/rpc/internal"
+	"github.com/evergreen-ci/timber/buildlogger/internal"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/level"
@@ -109,20 +109,12 @@ func (opts *BuildloggerOptions) validate() error {
 	return nil
 }
 
+func (opts *BuildloggerOptions) SetExitCode(i int32) { opts.exitCode = i }
 func (opts *BuildloggerOptions) GetLogID() string {
 	return opts.logID
 }
 
-func (opts *BuildloggerOptions) SetExitCode(i int32) error {
-	if opts.exitcodeSet {
-		return errors.New("exit code has already been set for this buildlogger log")
-	}
-
-	opts.exitCode = i
-	opts.exitCodeSet = true
-}
-
-func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts BuildloggerOptions) (send.Sender, error) {
+func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts *BuildloggerOptions) (send.Sender, error) {
 	ts := time.Now()
 
 	if err := opts.validate(); err != nil {
@@ -205,7 +197,7 @@ func (b *buildlogger) Send(m message.Composer) {
 			Data:      m.String(),
 		}
 
-		if binary.Size(b.buffer)+binary.Size(logLine) > b.maxBufferSize {
+		if binary.Size(b.buffer)+binary.Size(logLine) > b.opts.MaxBufferSize {
 			if err := b.flush(); err != nil {
 				b.opts.Local.Send(message.NewErrorMessage(level.Error, err))
 				return
