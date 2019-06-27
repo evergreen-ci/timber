@@ -2,8 +2,8 @@ buildDir := build
 srcFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -name "*_test.go" -not -path "*\#*")
 testFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -path "*\#*")
 
-packages := ./ ./rpc ./rpc/internal
-lintPackages := timber rpc rpc-internal
+packages := ./ ./buildlogger ./buildlogger/internal
+lintPackages := timber buildlogger buildlogger-internal
 # override the go binary path if set
 ifneq (,$(GO_BIN_PATH))
 gobin := $(GO_BIN_PATH)
@@ -128,12 +128,12 @@ $(buildDir)/output.lint:$(buildDir)/run-linter $(buildDir)/ .FORCE
 
 
 proto:vendor/cedar.proto
-	@mkdir -p rpc/internal
-	protoc --go_out=plugins=grpc:rpc/internal vendor/cedar.proto
-	mv rpc/internal/vendor/cedar.pb.go rpc/internal/cedar.pb.go
-	rm -rf rpc/internal/vendor
+	@mkdir -p buildlogger/internal
+	protoc --go_out=plugins=grpc:buildlogger/internal vendor/cedar.proto
+	mv buildlogger/internal/vendor/cedar.pb.go buildlogger/internal/cedar.pb.go
+	rm -rf buildlogger/internal/vendor
 clean:
-	rm -rf rpc/internal/*.pb.go
+	rm -rf internal/*.pb.go
 
 vendor/cedar.proto:
 	curl -L https://raw.githubusercontent.com/evergreen-ci/cedar/master/buildlogger.proto -o $@

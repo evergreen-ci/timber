@@ -1,4 +1,4 @@
-package rpc
+package buildlogger
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/evergreen-ci/aviation"
-	"github.com/evergreen-ci/timber/rpc/internal"
+	"github.com/evergreen-ci/timber/buildlogger/internal"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/level"
@@ -108,11 +108,11 @@ func (opts *BuildloggerOptions) validate() error {
 	return nil
 }
 
-func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts BuildloggerOptions) (send.Sender, chan int32, error) {
+func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts BuildloggerOptions) (BuildloggerSender, error) {
 	ts := time.Now()
 
 	if err := opts.validate(); err != nil {
-		return nil, nil, errors.Wrap(err, "invalid cedar buildlogger options")
+		return nil, errors.Wrap(err, "invalid cedar buildlogger options")
 	}
 
 	var conn *grpc.ClientConn
@@ -128,7 +128,7 @@ func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts Bui
 			var tlsConf *tls.Config
 			tlsConf, err = aviation.GetClientTLSConfig(opts.CAFile, opts.CertFile, opts.KeyFile)
 			if err != nil {
-				return nil, nil, errors.Wrap(err, "problem getting client TLS config")
+				return nil, errors.Wrap(err, "problem getting client TLS config")
 			}
 
 			rpcOpts = append(rpcOpts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConf)))
@@ -136,7 +136,7 @@ func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts Bui
 
 		conn, err := grpc.DialContext(ctx, opts.RPCAddress, rpcOpts...)
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "problem dialing rpc server")
+			return nil, errors.Wrap(err, "problem dialing rpc server")
 		}
 		opts.ClientConn = conn
 	}
@@ -152,7 +152,7 @@ func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts Bui
 	}
 
 	if err := b.SetErrorHandler(send.ErrorHandlerFromSender(b.local)); err != nil {
-		return nil, nil, errors.Wrap(err, "problem setting default error handler")
+		return nil, errors.Wrap(err, "problem setting default error handler")
 	}
 
 	data := &internal.LogData{
@@ -176,18 +176,11 @@ func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts Bui
 	resp, err := b.client.CreateLog(ctx, data)
 	if err != nil {
 		b.local.Send(message.NewErrorMessage(level.Error, err))
-		return nil, nil, errors.Wrap(err, "problem creating log")
+		return nil, errors.Wrap(err, "problem creating log")
 	}
 	b.logID = resp.LogId
 
-	exit := make(chan int32)
-	go func() {
-		for {
-			b.exitCode = <-exit
-		}
-	}()
-
-	return b, exit, nil
+	return b, nil
 }
 
 func (b *buildlogger) Send(m message.Composer) {
@@ -238,6 +231,11 @@ func (b *buildlogger) Close() error {
 	}
 
 	return catcher.Resolve()
+}
+
+func (b *buildlogger) CloseWithExitCode(exitCode int) error {
+	b.exitCode = int32(exitCode)
+	return b.Close()
 }
 
 func (b *buildlogger) flush() error {
