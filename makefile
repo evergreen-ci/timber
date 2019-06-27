@@ -148,7 +148,7 @@ vendor-clean:
 	rm -rf vendor/github.com/mongodb/grip/vendor/github.com/pkg/errors/
 	rm -rf vendor/github.com/mongodb/grip/vendor/github.com/stretchr/testify/
 	rm -rf vendor/github.com/evergreen-ci/aviation/vendor/google.golang.org/grpc/
-	rm -rf vendor/github.com/evergreen-ci/aviation/vendor/github.com/monogdb/grip/
+	rm -rf vendor/github.com/evergreen-ci/aviation/vendor/github.com/mongodb/grip/
 	rm -rf vendor/github.com/evergreen-ci/aviation/vendor/github.com/pkg/errors/
 	rm -rf vendor/github.com/evergreen-ci/aviation/vendor/github.com/stretchr/testify/
 	find vendor/ -name "*.gif" -o -name "*.gz" -o -name "*.png" -o -name "*.ico" -o -name "*.dat" -o -name "*testdata" | xargs rm -rf
