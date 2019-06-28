@@ -3,7 +3,6 @@ package buildlogger
 import (
 	"context"
 	"crypto/tls"
-	"encoding/binary"
 	"time"
 
 	"github.com/evergreen-ci/aviation"
@@ -19,12 +18,12 @@ import (
 )
 
 type buildlogger struct {
-	ctx      context.Context
-	opts     *BuildloggerOptions
-	conn     *grpc.ClientConn
-	client   internal.BuildloggerClient
-	buffer   []*internal.LogLine
-	exitCode int32
+	ctx        context.Context
+	opts       *BuildloggerOptions
+	conn       *grpc.ClientConn
+	client     internal.BuildloggerClient
+	buffer     []*internal.LogLine
+	bufferSize int
 	*send.Base
 }
 
@@ -64,10 +63,9 @@ type BuildloggerOptions struct {
 	CertFile   string
 	KeyFile    string
 
-	logID       string
-	format      internal.LogFormat
-	exitCode    int32
-	exitCodeSet bool
+	logID    string
+	format   internal.LogFormat
+	exitCode int32
 }
 
 func (opts *BuildloggerOptions) validate() error {
@@ -92,7 +90,7 @@ func (opts *BuildloggerOptions) validate() error {
 		if opts.RPCAddress == "" {
 			return errors.New("must specify a RPC address when a client connection is not provided")
 		}
-		if opts.Insecure && (opts.CAFile == "" || opts.CertFile == "" || opts.KeyFile == "") {
+		if !opts.Insecure && (opts.CAFile == "" || opts.CertFile == "" || opts.KeyFile == "") {
 			return errors.New("must specify credential files when making a secure connection over RPC")
 		}
 	}
@@ -160,30 +158,9 @@ func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts *Bu
 		return nil, errors.Wrap(err, "problem setting default error handler")
 	}
 
-	data := &internal.LogData{
-		Info: &internal.LogInfo{
-			Project:   opts.Project,
-			Version:   opts.Version,
-			Variant:   opts.Variant,
-			TaskName:  opts.TaskName,
-			TaskId:    opts.TaskID,
-			Execution: opts.Execution,
-			TestName:  opts.TestName,
-			Trial:     opts.Trial,
-			ProcName:  opts.ProcessName,
-			Format:    opts.format,
-			Arguments: opts.Arguments,
-			Mainline:  opts.Mainline,
-		},
-		Storage:   internal.LogStorage_LOG_STORAGE_S3,
-		CreatedAt: &timestamp.Timestamp{Seconds: ts.Unix(), Nanos: int32(ts.Nanosecond())},
+	if err := b.createNewLog(ts); err != nil {
+		return nil, err
 	}
-	resp, err := b.client.CreateLog(ctx, data)
-	if err != nil {
-		b.opts.Local.Send(message.NewErrorMessage(level.Error, err))
-		return nil, errors.Wrap(err, "problem creating log")
-	}
-	b.opts.logID = resp.LogId
 
 	return b, nil
 }
@@ -197,7 +174,7 @@ func (b *buildlogger) Send(m message.Composer) {
 			Data:      m.String(),
 		}
 
-		if binary.Size(b.buffer)+binary.Size(logLine) > b.opts.MaxBufferSize {
+		if b.bufferSize+len(logLine.Data) > b.opts.MaxBufferSize {
 			if err := b.flush(); err != nil {
 				b.opts.Local.Send(message.NewErrorMessage(level.Error, err))
 				return
@@ -205,6 +182,7 @@ func (b *buildlogger) Send(m message.Composer) {
 		}
 
 		b.buffer = append(b.buffer, logLine)
+		b.bufferSize += len(logLine.Data)
 	}
 }
 
@@ -223,7 +201,7 @@ func (b *buildlogger) Close() error {
 	if !catcher.HasErrors() {
 		endInfo := &internal.LogEndInfo{
 			LogId:       b.opts.logID,
-			ExitCode:    b.exitCode,
+			ExitCode:    b.opts.exitCode,
 			CompletedAt: &timestamp.Timestamp{Seconds: ts.Unix(), Nanos: int32(ts.Nanosecond())},
 		}
 		_, err := b.client.CloseLog(b.ctx, endInfo)
@@ -238,16 +216,46 @@ func (b *buildlogger) Close() error {
 	return catcher.Resolve()
 }
 
+func (b *buildlogger) createNewLog(ts time.Time) error {
+	data := &internal.LogData{
+		Info: &internal.LogInfo{
+			Project:   b.opts.Project,
+			Version:   b.opts.Version,
+			Variant:   b.opts.Variant,
+			TaskName:  b.opts.TaskName,
+			TaskId:    b.opts.TaskID,
+			Execution: b.opts.Execution,
+			TestName:  b.opts.TestName,
+			Trial:     b.opts.Trial,
+			ProcName:  b.opts.ProcessName,
+			Format:    b.opts.format,
+			Arguments: b.opts.Arguments,
+			Mainline:  b.opts.Mainline,
+		},
+		Storage:   internal.LogStorage_LOG_STORAGE_S3,
+		CreatedAt: &timestamp.Timestamp{Seconds: ts.Unix(), Nanos: int32(ts.Nanosecond())},
+	}
+	resp, err := b.client.CreateLog(b.ctx, data)
+	if err != nil {
+		b.opts.Local.Send(message.NewErrorMessage(level.Error, err))
+		return errors.Wrap(err, "problem creating log")
+	}
+	b.opts.logID = resp.LogId
+
+	return nil
+}
+
 func (b *buildlogger) flush() error {
 	_, err := b.client.AppendLogLines(b.ctx, &internal.LogLines{
 		LogId: b.opts.logID,
 		Lines: b.buffer,
 	})
 	if err != nil {
-		return errors.Wrap(err, "problem appending lines")
+		return err
 	}
 
 	b.buffer = []*internal.LogLine{}
+	b.bufferSize = 0
 
 	return nil
 }
