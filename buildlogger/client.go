@@ -154,6 +154,10 @@ func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts *Bu
 		Base:   send.NewBase(name),
 	}
 
+	if err := b.SetLevel(l); err != nil {
+		return nil, errors.Wrap(err, "problem setting grip level")
+	}
+
 	if err := b.SetErrorHandler(send.ErrorHandlerFromSender(b.opts.Local)); err != nil {
 		return nil, errors.Wrap(err, "problem setting default error handler")
 	}

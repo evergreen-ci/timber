@@ -3,6 +3,9 @@ package buildlogger
 import (
 	"context"
 	"crypto/rand"
+	"fmt"
+	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,9 +30,9 @@ type mockClient struct {
 	closeErr  bool
 }
 
-func (mc *mockClient) CreateLog(ctx context.Context, in *internal.LogData, _ ...grpc.CallOption) (*internal.BuildloggerResponse, error) {
+func (mc *mockClient) CreateLog(_ context.Context, in *internal.LogData, _ ...grpc.CallOption) (*internal.BuildloggerResponse, error) {
 	if mc.createErr {
-		return nil, errors.New("create log error")
+		return nil, errors.New("create error")
 	}
 
 	mc.logData = in
@@ -37,7 +40,7 @@ func (mc *mockClient) CreateLog(ctx context.Context, in *internal.LogData, _ ...
 	return &internal.BuildloggerResponse{LogId: in.Info.TestName}, nil
 }
 
-func (mc *mockClient) AppendLogLines(ctx context.Context, in *internal.LogLines, _ ...grpc.CallOption) (*internal.BuildloggerResponse, error) {
+func (mc *mockClient) AppendLogLines(_ context.Context, in *internal.LogLines, _ ...grpc.CallOption) (*internal.BuildloggerResponse, error) {
 	if mc.appendErr {
 		return nil, errors.New("append error")
 	}
@@ -51,7 +54,7 @@ func (*mockClient) StreamLog(_ context.Context, _ ...grpc.CallOption) (internal.
 	return nil, nil
 }
 
-func (mc *mockClient) CloseLog(ctx context.Context, in *internal.LogEndInfo, _ ...grpc.CallOption) (*internal.BuildloggerResponse, error) {
+func (mc *mockClient) CloseLog(_ context.Context, in *internal.LogEndInfo, _ ...grpc.CallOption) (*internal.BuildloggerResponse, error) {
 	if mc.closeErr {
 		return nil, errors.New("close error")
 	}
@@ -59,6 +62,45 @@ func (mc *mockClient) CloseLog(ctx context.Context, in *internal.LogEndInfo, _ .
 	mc.logEndInfo = in
 
 	return &internal.BuildloggerResponse{LogId: in.LogId}, nil
+}
+
+type mockService struct {
+	createLog      bool
+	appendLogLines bool
+	closeLog       bool
+
+	createErr bool
+	appendErr bool
+	closeErr  bool
+}
+
+func (ms *mockService) CreateLog(_ context.Context, in *internal.LogData) (*internal.BuildloggerResponse, error) {
+	if ms.createErr {
+		return nil, errors.New("create error")
+	}
+
+	ms.createLog = true
+	return &internal.BuildloggerResponse{}, nil
+}
+
+func (ms *mockService) AppendLogLines(_ context.Context, in *internal.LogLines) (*internal.BuildloggerResponse, error) {
+	if ms.appendErr {
+		return nil, errors.New("append error")
+	}
+
+	ms.appendLogLines = true
+	return &internal.BuildloggerResponse{}, nil
+}
+
+func (ms *mockService) StreamLog(_ internal.Buildlogger_StreamLogServer) error { return nil }
+
+func (ms *mockService) CloseLog(_ context.Context, in *internal.LogEndInfo) (*internal.BuildloggerResponse, error) {
+	if ms.closeErr {
+		return nil, errors.New("close error")
+	}
+
+	ms.closeLog = true
+	return &internal.BuildloggerResponse{}, nil
 }
 
 type mockSender struct {
@@ -126,6 +168,80 @@ func TestBuildloggerOptionsValidate(t *testing.T) {
 	})
 }
 
+func TestNewBuildlogger(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	srv := &mockService{}
+	require.NoError(t, startRPCService(ctx, srv, 4000))
+	addr := fmt.Sprintf("localhost:%d", 4000)
+	conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure())
+	require.NoError(t, err)
+
+	t.Run("WithExistingClient", func(t *testing.T) {
+		name := "test"
+		l := send.LevelInfo{Default: level.Debug, Threshold: level.Debug}
+		opts := &BuildloggerOptions{
+			ClientConn: conn,
+			Local:      &mockSender{Base: send.NewBase("test")},
+		}
+
+		s, err := NewBuildlogger(ctx, name, l, opts)
+		require.NoError(t, err)
+		require.NotNil(t, s)
+		assert.Equal(t, name, s.Name())
+		assert.Equal(t, l, s.Level())
+		assert.True(t, srv.createLog)
+		b, ok := s.(*buildlogger)
+		require.True(t, ok)
+		assert.Equal(t, ctx, b.ctx)
+		assert.NotNil(t, b.buffer)
+		assert.Equal(t, opts, b.opts)
+		srv.createLog = false
+	})
+	t.Run("WithoutExistingClient", func(t *testing.T) {
+		name := "test2"
+		l := send.LevelInfo{Default: level.Trace, Threshold: level.Alert}
+		opts := &BuildloggerOptions{
+			Local:      &mockSender{Base: send.NewBase("test")},
+			Insecure:   true,
+			RPCAddress: addr,
+		}
+
+		s, err := NewBuildlogger(ctx, name, l, opts)
+		require.NoError(t, err)
+		require.NotNil(t, s)
+		assert.Equal(t, name, s.Name())
+		assert.Equal(t, l, s.Level())
+		assert.True(t, srv.createLog)
+		b, ok := s.(*buildlogger)
+		require.True(t, ok)
+		assert.Equal(t, ctx, b.ctx)
+		assert.NotNil(t, b.buffer)
+		assert.Equal(t, opts, b.opts)
+		srv.createLog = false
+	})
+	t.Run("InvalidOptions", func(t *testing.T) {
+		s, err := NewBuildlogger(ctx, "test3", send.LevelInfo{}, &BuildloggerOptions{})
+		assert.Error(t, err)
+		assert.Nil(t, s)
+	})
+	t.Run("CreateLogError", func(t *testing.T) {
+		name := "test4"
+		l := send.LevelInfo{Default: level.Debug, Threshold: level.Debug}
+		ms := &mockSender{Base: send.NewBase("test")}
+		opts := &BuildloggerOptions{
+			ClientConn: conn,
+			Local:      ms,
+		}
+		srv.createErr = true
+
+		s, err := NewBuildlogger(ctx, name, l, opts)
+		assert.Error(t, err)
+		assert.Nil(t, s)
+		assert.True(t, strings.Contains(ms.lastMessage, "create error"))
+	})
+}
+
 func TestCreateNewLog(t *testing.T) {
 	t.Run("CorrectData", func(t *testing.T) {
 		mc := &mockClient{}
@@ -157,7 +273,7 @@ func TestCreateNewLog(t *testing.T) {
 		b := createSender(mc, ms)
 
 		assert.Error(t, b.createNewLog(time.Now()))
-		assert.Equal(t, "create log error", ms.lastMessage)
+		assert.Equal(t, "create error", ms.lastMessage)
 	})
 }
 
@@ -316,4 +432,24 @@ func newRandString(size int) string {
 	b := make([]byte, size)
 	_, _ = rand.Read(b)
 	return string(b)
+}
+
+func startRPCService(ctx context.Context, service internal.BuildloggerServer, port int) error {
+	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	s := grpc.NewServer()
+	internal.RegisterBuildloggerServer(s, service)
+
+	go func() {
+		_ = s.Serve(lis)
+	}()
+	go func() {
+		<-ctx.Done()
+		s.Stop()
+	}()
+
+	return nil
 }
