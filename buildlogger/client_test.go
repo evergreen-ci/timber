@@ -73,6 +73,57 @@ func (ms *mockSender) Send(m message.Composer) {
 }
 
 func TestBuildloggerOptionsValidate(t *testing.T) {
+	t.Run("Defaults", func(t *testing.T) {
+		opts := &BuildloggerOptions{ClientConn: &grpc.ClientConn{}}
+		require.NoError(t, opts.validate())
+		assert.Equal(t, opts.format, internal.LogFormat_LOG_FORMAT_UNKNOWN)
+		assert.NotNil(t, opts.Local)
+		assert.Equal(t, opts.MaxBufferSize, 4096)
+
+		size := 100
+		local := &mockSender{Base: send.NewBase("test")}
+		opts = &BuildloggerOptions{
+			ClientConn:    &grpc.ClientConn{},
+			MaxBufferSize: size,
+			Local:         local,
+		}
+		require.NoError(t, opts.validate())
+		assert.Equal(t, size, opts.MaxBufferSize)
+		assert.Equal(t, local, opts.Local)
+
+		opts.LogFormatText = true
+		require.NoError(t, opts.validate())
+		assert.Equal(t, opts.format, internal.LogFormat_LOG_FORMAT_TEXT)
+		opts.LogFormatText = false
+		opts.LogFormatJSON = true
+		require.NoError(t, opts.validate())
+		assert.Equal(t, opts.format, internal.LogFormat_LOG_FORMAT_JSON)
+		opts.LogFormatJSON = false
+		opts.LogFormatBSON = true
+		require.NoError(t, opts.validate())
+		assert.Equal(t, opts.format, internal.LogFormat_LOG_FORMAT_BSON)
+	})
+	t.Run("MultipleLogFormats", func(t *testing.T) {
+		opts := &BuildloggerOptions{
+			ClientConn:    &grpc.ClientConn{},
+			LogFormatText: true,
+			LogFormatJSON: true,
+			LogFormatBSON: true,
+		}
+		assert.Error(t, opts.validate())
+	})
+	t.Run("ClientConnNilAndNoRPCAddress", func(t *testing.T) {
+		opts := &BuildloggerOptions{
+			Insecure: true,
+		}
+		assert.Error(t, opts.validate())
+	})
+	t.Run("InsecureFalseAndNoAuthFiles", func(t *testing.T) {
+		opts := &BuildloggerOptions{
+			RPCAddress: "address",
+		}
+		assert.Error(t, opts.validate())
+	})
 }
 
 func TestCreateNewLog(t *testing.T) {

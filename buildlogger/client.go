@@ -38,9 +38,9 @@ type BuildloggerOptions struct {
 	TestName      string
 	Trial         int32
 	ProcessName   string
+	LogFormatText bool
 	LogFormatJSON bool
 	LogFormatBSON bool
-	LogFormatText bool
 	Arguments     map[string]string
 	Mainline      bool
 
