@@ -21,13 +21,12 @@ import (
 )
 
 type mockClient struct {
+	createErr  bool
+	appendErr  bool
+	closeErr   bool
 	logData    *internal.LogData
 	logLines   *internal.LogLines
 	logEndInfo *internal.LogEndInfo
-
-	createErr bool
-	appendErr bool
-	closeErr  bool
 }
 
 func (mc *mockClient) CreateLog(_ context.Context, in *internal.LogData, _ ...grpc.CallOption) (*internal.BuildloggerResponse, error) {
@@ -68,10 +67,9 @@ type mockService struct {
 	createLog      bool
 	appendLogLines bool
 	closeLog       bool
-
-	createErr bool
-	appendErr bool
-	closeErr  bool
+	createErr      bool
+	appendErr      bool
+	closeErr       bool
 }
 
 func (ms *mockService) CreateLog(_ context.Context, in *internal.LogData) (*internal.BuildloggerResponse, error) {
@@ -283,7 +281,7 @@ func TestSend(t *testing.T) {
 		ms := &mockSender{Base: send.NewBase("test")}
 		b := createSender(mc, ms)
 
-		b.SetLevel(send.LevelInfo{Default: level.Debug, Threshold: level.Emergency})
+		require.NoError(t, b.SetLevel(send.LevelInfo{Default: level.Debug, Threshold: level.Emergency}))
 		m := message.ConvertToComposer(level.Alert, "alert")
 		b.Send(m)
 		assert.Empty(t, b.buffer)
@@ -292,7 +290,7 @@ func TestSend(t *testing.T) {
 		require.NotEmpty(t, b.buffer)
 		assert.Equal(t, m.String(), b.buffer[len(b.buffer)-1].Data)
 
-		b.SetLevel(send.LevelInfo{Default: level.Debug, Threshold: level.Debug})
+		require.NoError(t, b.SetLevel(send.LevelInfo{Default: level.Debug, Threshold: level.Debug}))
 		m = message.ConvertToComposer(level.Debug, "debug")
 		b.Send(m)
 		require.NotEmpty(t, b.buffer)

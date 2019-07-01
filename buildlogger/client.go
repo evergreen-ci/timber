@@ -27,6 +27,7 @@ type buildlogger struct {
 	*send.Base
 }
 
+// BuildloggerOptions support the use and creation of a Buildlogger log.
 type BuildloggerOptions struct {
 	// Unique information to identify the log.
 	Project       string
@@ -107,11 +108,16 @@ func (opts *BuildloggerOptions) validate() error {
 	return nil
 }
 
+// SetExitCode sets the exit code variable.
 func (opts *BuildloggerOptions) SetExitCode(i int32) { opts.exitCode = i }
+
+// GetLodID returns the unique buildlogger log ID set after NewBuildlogger is
+// called.
 func (opts *BuildloggerOptions) GetLogID() string {
 	return opts.logID
 }
 
+// NewBuildlogger returns a grip Sender backed by Cedar Buildlogger.
 func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts *BuildloggerOptions) (send.Sender, error) {
 	ts := time.Now()
 
@@ -169,6 +175,10 @@ func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts *Bu
 	return b, nil
 }
 
+// Send sends the given message with a timestamp created when the function is
+// called to the Cedar Buildlogger backend. This function buffers the messages
+// created at timestamps until the maximum allowed buffer size is reached at
+// which point a gRPC call is made to send the data to Cedar.
 func (b *buildlogger) Send(m message.Composer) {
 	ts := time.Now()
 
@@ -190,6 +200,10 @@ func (b *buildlogger) Send(m message.Composer) {
 	}
 }
 
+// Close flushes anything that may be left in the underlying buffer and closes
+// out the RPC connection with a completed at timestamp and the exit code. If
+// the gRPC client connection was created in NewBuildlogger, this connection
+// is also closed.
 func (b *buildlogger) Close() error {
 	ts := time.Now()
 
