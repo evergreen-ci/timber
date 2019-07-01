@@ -3,6 +3,7 @@ package buildlogger
 import (
 	"context"
 	"crypto/tls"
+	"sync"
 	"time"
 
 	"github.com/evergreen-ci/aviation"
@@ -18,6 +19,7 @@ import (
 )
 
 type buildlogger struct {
+	mux        sync.Mutex
 	ctx        context.Context
 	opts       *BuildloggerOptions
 	conn       *grpc.ClientConn
@@ -30,20 +32,24 @@ type buildlogger struct {
 // BuildloggerOptions support the use and creation of a Buildlogger log.
 type BuildloggerOptions struct {
 	// Unique information to identify the log.
-	Project       string
-	Version       string
-	Variant       string
-	TaskName      string
-	TaskID        string
-	Execution     int32
-	TestName      string
-	Trial         int32
-	ProcessName   string
-	LogFormatText bool
-	LogFormatJSON bool
-	LogFormatBSON bool
-	Arguments     map[string]string
-	Mainline      bool
+	Project          string
+	Version          string
+	Variant          string
+	TaskName         string
+	TaskID           string
+	Execution        int32
+	TestName         string
+	Trial            int32
+	ProcessName      string
+	LogFormatText    bool
+	LogFormatJSON    bool
+	LogFormatBSON    bool
+	LogStorageS3     bool
+	LogStorageLocal  bool
+	LogStorageGridFS bool
+	LogStorage       bool
+	Arguments        map[string]string
+	Mainline         bool
 
 	// Configure a local sender for "fallback" operations and to collect
 	// the location of the buildlogger output.
@@ -66,6 +72,7 @@ type BuildloggerOptions struct {
 
 	logID    string
 	format   internal.LogFormat
+	storage  internal.LogStorage
 	exitCode int32
 }
 
@@ -85,6 +92,23 @@ func (opts *BuildloggerOptions) validate() error {
 	}
 	if count > 1 {
 		return errors.New("cannot specify more than one log format")
+	}
+
+	count = 0
+	opts.storage = internal.LogStorage_LOG_STORAGE_S3
+	if opts.LogStorageS3 {
+		count++
+	}
+	if opts.LogStorageLocal {
+		opts.storage = internal.LogStorage_LOG_STORAGE_LOCAL
+		count++
+	}
+	if opts.LogStorageGridFS {
+		opts.storage = internal.LogStorage_LOG_STORAGE_GRIDFS
+		count++
+	}
+	if count > 1 {
+		return errors.New("cannot specify more than one storage type")
 	}
 
 	if opts.ClientConn == nil {
@@ -195,8 +219,10 @@ func (b *buildlogger) Send(m message.Composer) {
 			}
 		}
 
+		b.mux.Lock()
 		b.buffer = append(b.buffer, logLine)
 		b.bufferSize += len(logLine.Data)
+		b.mux.Unlock()
 	}
 }
 
@@ -250,7 +276,7 @@ func (b *buildlogger) createNewLog(ts time.Time) error {
 			Arguments: b.opts.Arguments,
 			Mainline:  b.opts.Mainline,
 		},
-		Storage:   internal.LogStorage_LOG_STORAGE_S3,
+		Storage:   b.opts.storage,
 		CreatedAt: &timestamp.Timestamp{Seconds: ts.Unix(), Nanos: int32(ts.Nanosecond())},
 	}
 	resp, err := b.client.CreateLog(b.ctx, data)
@@ -264,6 +290,9 @@ func (b *buildlogger) createNewLog(ts time.Time) error {
 }
 
 func (b *buildlogger) flush() error {
+	b.mux.Lock()
+	defer b.mux.Unlock()
+
 	_, err := b.client.AppendLogLines(b.ctx, &internal.LogLines{
 		LogId: b.opts.logID,
 		Lines: b.buffer,

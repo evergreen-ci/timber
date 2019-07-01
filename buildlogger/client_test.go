@@ -117,6 +117,7 @@ func TestBuildloggerOptionsValidate(t *testing.T) {
 		opts := &BuildloggerOptions{ClientConn: &grpc.ClientConn{}}
 		require.NoError(t, opts.validate())
 		assert.Equal(t, opts.format, internal.LogFormat_LOG_FORMAT_UNKNOWN)
+		assert.Equal(t, opts.storage, internal.LogStorage_LOG_STORAGE_S3)
 		assert.NotNil(t, opts.Local)
 		assert.Equal(t, opts.MaxBufferSize, 4096)
 
@@ -142,6 +143,18 @@ func TestBuildloggerOptionsValidate(t *testing.T) {
 		opts.LogFormatBSON = true
 		require.NoError(t, opts.validate())
 		assert.Equal(t, opts.format, internal.LogFormat_LOG_FORMAT_BSON)
+
+		opts.LogStorageS3 = true
+		require.NoError(t, opts.validate())
+		assert.Equal(t, opts.storage, internal.LogStorage_LOG_STORAGE_S3)
+		opts.LogStorageS3 = false
+		opts.LogStorageLocal = true
+		require.NoError(t, opts.validate())
+		assert.Equal(t, opts.storage, internal.LogStorage_LOG_STORAGE_LOCAL)
+		opts.LogStorageLocal = false
+		opts.LogStorageGridFS = true
+		require.NoError(t, opts.validate())
+		assert.Equal(t, opts.storage, internal.LogStorage_LOG_STORAGE_GRIDFS)
 	})
 	t.Run("MultipleLogFormats", func(t *testing.T) {
 		opts := &BuildloggerOptions{
@@ -149,6 +162,15 @@ func TestBuildloggerOptionsValidate(t *testing.T) {
 			LogFormatText: true,
 			LogFormatJSON: true,
 			LogFormatBSON: true,
+		}
+		assert.Error(t, opts.validate())
+	})
+	t.Run("MultipleStorage", func(t *testing.T) {
+		opts := &BuildloggerOptions{
+			ClientConn:       &grpc.ClientConn{},
+			LogStorageS3:     true,
+			LogStorageLocal:  true,
+			LogStorageGridFS: true,
 		}
 		assert.Error(t, opts.validate())
 	})
