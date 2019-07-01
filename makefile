@@ -22,7 +22,7 @@ lintArgs := --tests --deadline=13m --vendor
 #   gotype produces false positives because it reads .a files which
 #   are rarely up to date.
 lintArgs += --disable="gotype" --disable="gosec" --disable="gocyclo" --disable="golint" 
-lintArgs += --disable="staticcheck"
+lintArgs += --disable="staticcheck" --disable="maligned"
 lintArgs += --skip="build"
 lintArgs += --exclude="rpc/internal/.*.pb.go"
 #   enable and configure additional linters
