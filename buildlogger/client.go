@@ -21,7 +21,7 @@ import (
 type buildlogger struct {
 	mux        sync.Mutex
 	ctx        context.Context
-	opts       *BuildloggerOptions
+	opts       *LoggerOptions
 	conn       *grpc.ClientConn
 	client     internal.BuildloggerClient
 	buffer     []*internal.LogLine
@@ -29,8 +29,8 @@ type buildlogger struct {
 	*send.Base
 }
 
-// BuildloggerOptions support the use and creation of a Buildlogger log.
-type BuildloggerOptions struct {
+// LoggerOptions support the use and creation of a Buildlogger log.
+type LoggerOptions struct {
 	// Unique information to identify the log.
 	Project          string
 	Version          string
@@ -76,7 +76,7 @@ type BuildloggerOptions struct {
 	exitCode int32
 }
 
-func (opts *BuildloggerOptions) validate() error {
+func (opts *LoggerOptions) validate() error {
 	count := 0
 	if opts.LogFormatText {
 		opts.format = internal.LogFormat_LOG_FORMAT_TEXT
@@ -133,16 +133,31 @@ func (opts *BuildloggerOptions) validate() error {
 }
 
 // SetExitCode sets the exit code variable.
-func (opts *BuildloggerOptions) SetExitCode(i int32) { opts.exitCode = i }
+func (opts *LoggerOptions) SetExitCode(i int32) { opts.exitCode = i }
 
-// GetLodID returns the unique buildlogger log ID set after NewBuildlogger is
+// GetLogID returns the unique buildlogger log ID set after NewLogger is
 // called.
-func (opts *BuildloggerOptions) GetLogID() string {
+func (opts *LoggerOptions) GetLogID() string {
 	return opts.logID
 }
 
-// NewBuildlogger returns a grip Sender backed by Cedar Buildlogger.
-func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts *BuildloggerOptions) (send.Sender, error) {
+// MakeLogger returns a grip Sender backed by Cedar Buildlogger with level
+// information set.
+func NewLogger(ctx context.Context, name string, l send.LevelInfo, opts *LoggerOptions) (send.Sender, error) {
+	b, err := MakeLogger(ctx, name, opts)
+	if err != nil {
+		return nil, errors.Wrap(err, "problem making new logger")
+	}
+
+	if err := b.SetLevel(l); err != nil {
+		return nil, errors.Wrap(err, "problem setting grip level")
+	}
+
+	return b, nil
+}
+
+// MakeLogger returns a grip Sender backed by Cedar Buildlogger.
+func MakeLogger(ctx context.Context, name string, opts *LoggerOptions) (send.Sender, error) {
 	ts := time.Now()
 
 	if err := opts.validate(); err != nil {
@@ -182,10 +197,6 @@ func NewBuildlogger(ctx context.Context, name string, l send.LevelInfo, opts *Bu
 		client: internal.NewBuildloggerClient(opts.ClientConn),
 		buffer: []*internal.LogLine{},
 		Base:   send.NewBase(name),
-	}
-
-	if err := b.SetLevel(l); err != nil {
-		return nil, errors.Wrap(err, "problem setting grip level")
 	}
 
 	if err := b.SetErrorHandler(send.ErrorHandlerFromSender(b.opts.Local)); err != nil {

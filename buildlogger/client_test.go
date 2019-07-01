@@ -112,9 +112,9 @@ func (ms *mockSender) Send(m message.Composer) {
 	}
 }
 
-func TestBuildloggerOptionsValidate(t *testing.T) {
+func TestLoggerOptionsValidate(t *testing.T) {
 	t.Run("Defaults", func(t *testing.T) {
-		opts := &BuildloggerOptions{ClientConn: &grpc.ClientConn{}}
+		opts := &LoggerOptions{ClientConn: &grpc.ClientConn{}}
 		require.NoError(t, opts.validate())
 		assert.Equal(t, opts.format, internal.LogFormat_LOG_FORMAT_UNKNOWN)
 		assert.Equal(t, opts.storage, internal.LogStorage_LOG_STORAGE_S3)
@@ -123,7 +123,7 @@ func TestBuildloggerOptionsValidate(t *testing.T) {
 
 		size := 100
 		local := &mockSender{Base: send.NewBase("test")}
-		opts = &BuildloggerOptions{
+		opts = &LoggerOptions{
 			ClientConn:    &grpc.ClientConn{},
 			MaxBufferSize: size,
 			Local:         local,
@@ -157,7 +157,7 @@ func TestBuildloggerOptionsValidate(t *testing.T) {
 		assert.Equal(t, opts.storage, internal.LogStorage_LOG_STORAGE_GRIDFS)
 	})
 	t.Run("MultipleLogFormats", func(t *testing.T) {
-		opts := &BuildloggerOptions{
+		opts := &LoggerOptions{
 			ClientConn:    &grpc.ClientConn{},
 			LogFormatText: true,
 			LogFormatJSON: true,
@@ -166,7 +166,7 @@ func TestBuildloggerOptionsValidate(t *testing.T) {
 		assert.Error(t, opts.validate())
 	})
 	t.Run("MultipleStorage", func(t *testing.T) {
-		opts := &BuildloggerOptions{
+		opts := &LoggerOptions{
 			ClientConn:       &grpc.ClientConn{},
 			LogStorageS3:     true,
 			LogStorageLocal:  true,
@@ -175,20 +175,20 @@ func TestBuildloggerOptionsValidate(t *testing.T) {
 		assert.Error(t, opts.validate())
 	})
 	t.Run("ClientConnNilAndNoRPCAddress", func(t *testing.T) {
-		opts := &BuildloggerOptions{
+		opts := &LoggerOptions{
 			Insecure: true,
 		}
 		assert.Error(t, opts.validate())
 	})
 	t.Run("InsecureFalseAndNoAuthFiles", func(t *testing.T) {
-		opts := &BuildloggerOptions{
+		opts := &LoggerOptions{
 			RPCAddress: "address",
 		}
 		assert.Error(t, opts.validate())
 	})
 }
 
-func TestNewBuildlogger(t *testing.T) {
+func TestNewLogger(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	srv := &mockService{}
@@ -200,12 +200,12 @@ func TestNewBuildlogger(t *testing.T) {
 	t.Run("WithExistingClient", func(t *testing.T) {
 		name := "test"
 		l := send.LevelInfo{Default: level.Debug, Threshold: level.Debug}
-		opts := &BuildloggerOptions{
+		opts := &LoggerOptions{
 			ClientConn: conn,
 			Local:      &mockSender{Base: send.NewBase("test")},
 		}
 
-		s, err := NewBuildlogger(ctx, name, l, opts)
+		s, err := NewLogger(ctx, name, l, opts)
 		require.NoError(t, err)
 		require.NotNil(t, s)
 		assert.Equal(t, name, s.Name())
@@ -221,13 +221,13 @@ func TestNewBuildlogger(t *testing.T) {
 	t.Run("WithoutExistingClient", func(t *testing.T) {
 		name := "test2"
 		l := send.LevelInfo{Default: level.Trace, Threshold: level.Alert}
-		opts := &BuildloggerOptions{
+		opts := &LoggerOptions{
 			Local:      &mockSender{Base: send.NewBase("test")},
 			Insecure:   true,
 			RPCAddress: addr,
 		}
 
-		s, err := NewBuildlogger(ctx, name, l, opts)
+		s, err := NewLogger(ctx, name, l, opts)
 		require.NoError(t, err)
 		require.NotNil(t, s)
 		assert.Equal(t, name, s.Name())
@@ -241,7 +241,7 @@ func TestNewBuildlogger(t *testing.T) {
 		srv.createLog = false
 	})
 	t.Run("InvalidOptions", func(t *testing.T) {
-		s, err := NewBuildlogger(ctx, "test3", send.LevelInfo{}, &BuildloggerOptions{})
+		s, err := NewLogger(ctx, "test3", send.LevelInfo{}, &LoggerOptions{})
 		assert.Error(t, err)
 		assert.Nil(t, s)
 	})
@@ -249,13 +249,13 @@ func TestNewBuildlogger(t *testing.T) {
 		name := "test4"
 		l := send.LevelInfo{Default: level.Debug, Threshold: level.Debug}
 		ms := &mockSender{Base: send.NewBase("test")}
-		opts := &BuildloggerOptions{
+		opts := &LoggerOptions{
 			ClientConn: conn,
 			Local:      ms,
 		}
 		srv.createErr = true
 
-		s, err := NewBuildlogger(ctx, name, l, opts)
+		s, err := NewLogger(ctx, name, l, opts)
 		assert.Error(t, err)
 		assert.Nil(t, s)
 		assert.True(t, strings.Contains(ms.lastMessage, "create error"))
@@ -427,7 +427,7 @@ func TestClose(t *testing.T) {
 func createSender(mc internal.BuildloggerClient, ms send.Sender) *buildlogger {
 	return &buildlogger{
 		ctx: context.TODO(),
-		opts: &BuildloggerOptions{
+		opts: &LoggerOptions{
 			Project:     "project",
 			Version:     "version",
 			Variant:     "variant",
