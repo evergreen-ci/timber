@@ -238,9 +238,9 @@ func (b *buildlogger) Send(m message.Composer) {
 }
 
 // Close flushes anything that may be left in the underlying buffer and closes
-// out the RPC connection with a completed at timestamp and the exit code. If
-// the gRPC client connection was created in NewBuildlogger, this connection
-// is also closed.
+// out the log with a completed at timestamp and the exit code. If the gRPC
+// client connection was created in NewBuildlogger, this connection is also
+// closed.
 func (b *buildlogger) Close() error {
 	ts := time.Now()
 
