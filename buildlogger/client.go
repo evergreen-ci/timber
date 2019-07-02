@@ -141,7 +141,7 @@ func (opts *LoggerOptions) GetLogID() string {
 	return opts.logID
 }
 
-// MakeLogger returns a grip Sender backed by Cedar Buildlogger with level
+// NewLogger returns a grip Sender backed by Cedar Buildlogger with level
 // information set.
 func NewLogger(ctx context.Context, name string, l send.LevelInfo, opts *LoggerOptions) (send.Sender, error) {
 	b, err := MakeLogger(ctx, name, opts)
