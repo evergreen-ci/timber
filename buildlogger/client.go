@@ -217,9 +217,9 @@ func MakeLogger(ctx context.Context, name string, opts *LoggerOptions) (send.Sen
 
 // Send sends the given message with a timestamp created when the function is
 // called to the Cedar Buildlogger backend. This function buffers the messages
-// created at timestamps until the maximum allowed buffer size is reached at
-// which point a gRPC call is made to send the data to Cedar. Send is thread
-// safe.
+// until the maximum allowed buffer size is reached, at which point the
+// messages in the buffer are sent to the Buildlogger server via RPC. Send is
+// thread safe.
 func (b *buildlogger) Send(m message.Composer) {
 	if !b.Level().ShouldLog(m) {
 		return
@@ -261,9 +261,10 @@ func (b *buildlogger) Send(m message.Composer) {
 
 // Close flushes anything that may be left in the underlying buffer and closes
 // out the log with a completed at timestamp and the exit code. If the gRPC
-// client connection was created in NewBuildlogger, this connection is also
-// closed. While Send is thread safe, Close is not and should only be called
-// once after all calls to Send have returned.
+// client connection was created in NewLogger or MakeLogger, this connection is
+// also closed. Close is thread safe but should only be called once no more
+// calls to Send are needed; after Close has been called any subsequent calls
+// to Send will error.
 func (b *buildlogger) Close() error {
 	ts := time.Now()
 
