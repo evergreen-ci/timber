@@ -19,6 +19,41 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+type LogFormat int32
+
+const (
+	LogFormatUnknown LogFormat = 0
+	LogFormatText    LogFormat = 1
+	LogFormatJSON    LogFormat = 2
+	LogFormatBSON    LogFormat = 3
+)
+
+func (f LogFormat) validate() error {
+	switch f {
+	case LogFormatUnknown, LogFormatText, LogFormatJSON, LogFormatBSON:
+		return nil
+	default:
+		return errors.New("invalid log format specified")
+	}
+}
+
+type LogStorage int32
+
+const (
+	LogStorageS3     LogStorage = 0
+	LogStorageGridFS LogStorage = 1
+	LogStorageLocal  LogStorage = 2
+)
+
+func (s LogStorage) validate() error {
+	switch s {
+	case LogStorageS3, LogStorageGridFS, LogStorageLocal:
+		return nil
+	default:
+		return errors.New("invalid log storage specified")
+	}
+}
+
 type buildlogger struct {
 	mu         sync.Mutex
 	ctx        context.Context
@@ -34,23 +69,21 @@ type buildlogger struct {
 // LoggerOptions support the use and creation of a Buildlogger log.
 type LoggerOptions struct {
 	// Unique information to identify the log.
-	Project          string
-	Version          string
-	Variant          string
-	TaskName         string
-	TaskID           string
-	Execution        int32
-	TestName         string
-	Trial            int32
-	ProcessName      string
-	LogFormatText    bool
-	LogFormatJSON    bool
-	LogFormatBSON    bool
-	LogStorageS3     bool
-	LogStorageLocal  bool
-	LogStorageGridFS bool
-	Arguments        map[string]string
-	Mainline         bool
+	Project     string
+	Version     string
+	Variant     string
+	TaskName    string
+	TaskID      string
+	Execution   int32
+	TestName    string
+	Trial       int32
+	ProcessName string
+	Format      LogFormat
+	Arguments   map[string]string
+	Mainline    bool
+
+	// Storage location type for this log.
+	Storage LogStorage
 
 	// Configure a local sender for "fallback" operations and to collect
 	// the location of the buildlogger output.
@@ -77,44 +110,15 @@ type LoggerOptions struct {
 	KeyFile    string
 
 	logID    string
-	format   internal.LogFormat
-	storage  internal.LogStorage
 	exitCode int32
 }
 
 func (opts *LoggerOptions) validate() error {
-	count := 0
-	if opts.LogFormatText {
-		opts.format = internal.LogFormat_LOG_FORMAT_TEXT
-		count++
+	if err := opts.Format.validate(); err != nil {
+		return err
 	}
-	if opts.LogFormatJSON {
-		opts.format = internal.LogFormat_LOG_FORMAT_JSON
-		count++
-	}
-	if opts.LogFormatBSON {
-		opts.format = internal.LogFormat_LOG_FORMAT_BSON
-		count++
-	}
-	if count > 1 {
-		return errors.New("cannot specify more than one log format")
-	}
-
-	count = 0
-	opts.storage = internal.LogStorage_LOG_STORAGE_S3
-	if opts.LogStorageS3 {
-		count++
-	}
-	if opts.LogStorageLocal {
-		opts.storage = internal.LogStorage_LOG_STORAGE_LOCAL
-		count++
-	}
-	if opts.LogStorageGridFS {
-		opts.storage = internal.LogStorage_LOG_STORAGE_GRIDFS
-		count++
-	}
-	if count > 1 {
-		return errors.New("cannot specify more than one storage type")
+	if err := opts.Storage.validate(); err != nil {
+		return err
 	}
 
 	if opts.ClientConn == nil {
@@ -230,7 +234,6 @@ func (b *buildlogger) Send(m message.Composer) {
 	defer b.mu.Unlock()
 
 	ts := time.Now()
-
 	if b.closed {
 		b.opts.Local.Send(message.NewErrorMessage(level.Error, errors.New("cannot call Send on a closed Buildlogger Sender")))
 		return
@@ -277,7 +280,6 @@ func (b *buildlogger) Close() error {
 	defer b.mu.Unlock()
 
 	ts := time.Now()
-
 	if b.closed {
 		return nil
 	}
@@ -322,11 +324,11 @@ func (b *buildlogger) createNewLog(ts time.Time) error {
 			TestName:  b.opts.TestName,
 			Trial:     b.opts.Trial,
 			ProcName:  b.opts.ProcessName,
-			Format:    b.opts.format,
+			Format:    internal.LogFormat(b.opts.Format),
 			Arguments: b.opts.Arguments,
 			Mainline:  b.opts.Mainline,
 		},
-		Storage:   b.opts.storage,
+		Storage:   internal.LogStorage(b.opts.Storage),
 		CreatedAt: &timestamp.Timestamp{Seconds: ts.Unix(), Nanos: int32(ts.Nanosecond())},
 	}
 	resp, err := b.client.CreateLog(b.ctx, data)

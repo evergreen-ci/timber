@@ -118,8 +118,8 @@ func TestLoggerOptionsValidate(t *testing.T) {
 	t.Run("Defaults", func(t *testing.T) {
 		opts := &LoggerOptions{ClientConn: &grpc.ClientConn{}}
 		require.NoError(t, opts.validate())
-		assert.Equal(t, opts.format, internal.LogFormat_LOG_FORMAT_UNKNOWN)
-		assert.Equal(t, opts.storage, internal.LogStorage_LOG_STORAGE_S3)
+		assert.Equal(t, internal.LogFormat(opts.Format), internal.LogFormat_LOG_FORMAT_UNKNOWN)
+		assert.Equal(t, internal.LogStorage(opts.Storage), internal.LogStorage_LOG_STORAGE_S3)
 		assert.NotNil(t, opts.Local)
 		assert.Equal(t, opts.MaxBufferSize, 4096)
 
@@ -134,45 +134,37 @@ func TestLoggerOptionsValidate(t *testing.T) {
 		assert.Equal(t, size, opts.MaxBufferSize)
 		assert.Equal(t, local, opts.Local)
 
-		opts.LogFormatText = true
+		opts.Format = LogFormatText
 		require.NoError(t, opts.validate())
-		assert.Equal(t, opts.format, internal.LogFormat_LOG_FORMAT_TEXT)
-		opts.LogFormatText = false
-		opts.LogFormatJSON = true
+		assert.Equal(t, internal.LogFormat(opts.Format), internal.LogFormat_LOG_FORMAT_TEXT)
+		opts.Format = LogFormatJSON
 		require.NoError(t, opts.validate())
-		assert.Equal(t, opts.format, internal.LogFormat_LOG_FORMAT_JSON)
-		opts.LogFormatJSON = false
-		opts.LogFormatBSON = true
+		assert.Equal(t, internal.LogFormat(opts.Format), internal.LogFormat_LOG_FORMAT_JSON)
+		opts.Format = LogFormatBSON
 		require.NoError(t, opts.validate())
-		assert.Equal(t, opts.format, internal.LogFormat_LOG_FORMAT_BSON)
+		assert.Equal(t, internal.LogFormat(opts.Format), internal.LogFormat_LOG_FORMAT_BSON)
 
-		opts.LogStorageS3 = true
+		opts.Storage = LogStorageS3
 		require.NoError(t, opts.validate())
-		assert.Equal(t, opts.storage, internal.LogStorage_LOG_STORAGE_S3)
-		opts.LogStorageS3 = false
-		opts.LogStorageLocal = true
+		assert.Equal(t, internal.LogStorage(opts.Storage), internal.LogStorage_LOG_STORAGE_S3)
+		opts.Storage = LogStorageLocal
 		require.NoError(t, opts.validate())
-		assert.Equal(t, opts.storage, internal.LogStorage_LOG_STORAGE_LOCAL)
-		opts.LogStorageLocal = false
-		opts.LogStorageGridFS = true
+		assert.Equal(t, internal.LogStorage(opts.Storage), internal.LogStorage_LOG_STORAGE_LOCAL)
+		opts.Storage = LogStorageGridFS
 		require.NoError(t, opts.validate())
-		assert.Equal(t, opts.storage, internal.LogStorage_LOG_STORAGE_GRIDFS)
+		assert.Equal(t, internal.LogStorage(opts.Storage), internal.LogStorage_LOG_STORAGE_GRIDFS)
 	})
-	t.Run("MultipleLogFormats", func(t *testing.T) {
+	t.Run("InvalidLogFormat", func(t *testing.T) {
 		opts := &LoggerOptions{
-			ClientConn:    &grpc.ClientConn{},
-			LogFormatText: true,
-			LogFormatJSON: true,
-			LogFormatBSON: true,
+			ClientConn: &grpc.ClientConn{},
+			Format:     4,
 		}
 		assert.Error(t, opts.validate())
 	})
-	t.Run("MultipleStorage", func(t *testing.T) {
+	t.Run("InvalidLogStorage", func(t *testing.T) {
 		opts := &LoggerOptions{
-			ClientConn:       &grpc.ClientConn{},
-			LogStorageS3:     true,
-			LogStorageLocal:  true,
-			LogStorageGridFS: true,
+			ClientConn: &grpc.ClientConn{},
+			Storage:    3,
 		}
 		assert.Error(t, opts.validate())
 	})
@@ -281,7 +273,7 @@ func TestCreateNewLog(t *testing.T) {
 		assert.Equal(t, b.opts.TestName, mc.logData.Info.TestName)
 		assert.Equal(t, b.opts.Trial, mc.logData.Info.Trial)
 		assert.Equal(t, b.opts.ProcessName, mc.logData.Info.ProcName)
-		assert.Equal(t, b.opts.format, mc.logData.Info.Format)
+		assert.Equal(t, b.opts.Format, mc.logData.Info.Format)
 		assert.Equal(t, b.opts.Arguments, mc.logData.Info.Arguments)
 		assert.Equal(t, b.opts.Mainline, mc.logData.Info.Mainline)
 		assert.Equal(t, expectedTS, mc.logData.CreatedAt)
@@ -535,7 +527,7 @@ func createSender(mc internal.BuildloggerClient, ms send.Sender) *buildlogger {
 			Arguments:   map[string]string{"tag1": "val", "tag2": "val2"},
 			Mainline:    true,
 			Local:       ms,
-			format:      internal.LogFormat_LOG_FORMAT_TEXT,
+			Format:      LogFormat(internal.LogFormat_LOG_FORMAT_TEXT),
 		},
 		client: mc,
 		buffer: []*internal.LogLine{},
