@@ -296,6 +296,7 @@ func TestSend(t *testing.T) {
 		mc := &mockClient{}
 		ms := &mockSender{Base: send.NewBase("test")}
 		b := createSender(mc, ms)
+		b.opts.MaxBufferSize = 4096
 
 		require.NoError(t, b.SetLevel(send.LevelInfo{Default: level.Debug, Threshold: level.Emergency}))
 		m := message.ConvertToComposer(level.Alert, "alert")
@@ -336,19 +337,18 @@ func TestSend(t *testing.T) {
 					continue
 				}
 				assert.Nil(t, mc.logLines)
-				assert.Equal(t, time.Now().Unix(), b.buffer[len(b.buffer)-1].Timestamp.Seconds)
 				require.True(t, len(b.buffer) >= len(lines))
+				assert.Equal(t, time.Now().Unix(), b.buffer[len(b.buffer)-1].Timestamp.Seconds)
 				assert.Equal(t, line, b.buffer[len(b.buffer)-(len(lines)-i)].Data)
 				messages = append(messages, line)
 			}
 		}
 		assert.Equal(t, b.opts.MaxBufferSize, b.bufferSize)
 		m := message.ConvertToComposer(level.Debug, "overflow")
+		messages = append(messages, m.String())
 		b.Send(m)
-		require.Len(t, b.buffer, 1)
-		assert.Equal(t, time.Now().Unix(), b.buffer[0].Timestamp.Seconds)
-		assert.Equal(t, m.String(), b.buffer[0].Data)
-		assert.Equal(t, len(m.String()), b.bufferSize)
+		require.Empty(t, b.buffer)
+		assert.Equal(t, 0, b.bufferSize)
 		require.NotNil(t, mc.logLines)
 		assert.Equal(t, b.opts.logID, mc.logLines.LogId)
 		assert.Len(t, mc.logLines.Lines, len(messages))
@@ -379,11 +379,10 @@ func TestSend(t *testing.T) {
 		}
 		assert.Equal(t, b.opts.MaxBufferSize, b.bufferSize)
 		m := message.ConvertToComposer(level.Debug, "overflow")
+		messages = append(messages, m)
 		b.Send(m)
-		require.Len(t, b.buffer, 1)
-		assert.Equal(t, time.Now().Unix(), b.buffer[0].Timestamp.Seconds)
-		assert.Equal(t, m.String(), b.buffer[0].Data)
-		assert.Equal(t, len(m.String()), b.bufferSize)
+		require.Empty(t, b.buffer)
+		assert.Equal(t, 0, b.bufferSize)
 		require.NotEmpty(t, mc.logLines)
 		assert.Equal(t, b.opts.logID, mc.logLines.LogId)
 		assert.Len(t, mc.logLines.Lines, len(messages))
@@ -413,14 +412,11 @@ func TestSend(t *testing.T) {
 		mc := &mockClient{appendErr: true}
 		ms := &mockSender{Base: send.NewBase("test")}
 		b := createSender(mc, ms)
-		b.opts.MaxBufferSize = len(str)
 
-		m1 := message.ConvertToComposer(level.Debug, str)
-		m2 := message.ConvertToComposer(level.Debug, str)
-		b.Send(m1)
-		b.Send(m2)
+		m := message.ConvertToComposer(level.Debug, str)
+		b.Send(m)
 		assert.Len(t, b.buffer, 1)
-		assert.Equal(t, len(m2.String()), b.bufferSize)
+		assert.Equal(t, len(m.String()), b.bufferSize)
 		assert.Equal(t, "append error", ms.lastMessage)
 	})
 	t.Run("ClosedSender", func(t *testing.T) {

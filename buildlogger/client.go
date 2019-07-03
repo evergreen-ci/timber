@@ -256,15 +256,14 @@ func (b *buildlogger) Send(m message.Composer) {
 			Data:      line,
 		}
 
-		if b.bufferSize+len(logLine.Data) > b.opts.MaxBufferSize {
+		b.buffer = append(b.buffer, logLine)
+		b.bufferSize += len(logLine.Data)
+		if b.bufferSize > b.opts.MaxBufferSize {
 			if err := b.flush(); err != nil {
 				b.opts.Local.Send(message.NewErrorMessage(level.Error, err))
 				return
 			}
 		}
-
-		b.buffer = append(b.buffer, logLine)
-		b.bufferSize += len(logLine.Data)
 	}
 }
 
