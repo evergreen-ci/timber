@@ -3,6 +3,7 @@ package buildlogger
 import (
 	"context"
 	"crypto/tls"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,7 +20,7 @@ import (
 )
 
 type buildlogger struct {
-	mux        sync.Mutex
+	mu         sync.Mutex
 	ctx        context.Context
 	opts       *LoggerOptions
 	conn       *grpc.ClientConn
@@ -47,7 +48,6 @@ type LoggerOptions struct {
 	LogStorageS3     bool
 	LogStorageLocal  bool
 	LogStorageGridFS bool
-	LogStorage       bool
 	Arguments        map[string]string
 	Mainline         bool
 
@@ -58,6 +58,11 @@ type LoggerOptions struct {
 	// The number max number of bytes to buffer before sending log data
 	// over rpc to Cedar.
 	MaxBufferSize int
+
+	// Turn checking for new lines in messages off. If this is set to true
+	// make sure log messages do not contain new lines, otherwise the logs
+	// will be stored incorrectly.
+	NewLineCheckOff bool
 
 	// The gRPC client connection. If nil, a new connection will be
 	// established with the gRPC connection configuration.
@@ -213,14 +218,33 @@ func MakeLogger(ctx context.Context, name string, opts *LoggerOptions) (send.Sen
 // Send sends the given message with a timestamp created when the function is
 // called to the Cedar Buildlogger backend. This function buffers the messages
 // created at timestamps until the maximum allowed buffer size is reached at
-// which point a gRPC call is made to send the data to Cedar.
+// which point a gRPC call is made to send the data to Cedar. Send is thread
+// safe.
 func (b *buildlogger) Send(m message.Composer) {
+	if !b.Level().ShouldLog(m) {
+		return
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	ts := time.Now()
 
-	if b.Level().ShouldLog(m) {
+	_, ok := m.(*message.GroupComposer)
+	var lines []string
+	if b.opts.NewLineCheckOff && !ok {
+		lines = []string{m.String()}
+	} else {
+		lines = strings.Split(m.String(), "\n")
+	}
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
 		logLine := &internal.LogLine{
 			Timestamp: &timestamp.Timestamp{Seconds: ts.Unix(), Nanos: int32(ts.Nanosecond())},
-			Data:      m.String(),
+			Data:      line,
 		}
 
 		if b.bufferSize+len(logLine.Data) > b.opts.MaxBufferSize {
@@ -230,17 +254,16 @@ func (b *buildlogger) Send(m message.Composer) {
 			}
 		}
 
-		b.mux.Lock()
 		b.buffer = append(b.buffer, logLine)
 		b.bufferSize += len(logLine.Data)
-		b.mux.Unlock()
 	}
 }
 
 // Close flushes anything that may be left in the underlying buffer and closes
 // out the log with a completed at timestamp and the exit code. If the gRPC
 // client connection was created in NewBuildlogger, this connection is also
-// closed.
+// closed. While Send is thread safe, Close is not and should only be called
+// once after all calls to Send have returned.
 func (b *buildlogger) Close() error {
 	ts := time.Now()
 
@@ -301,9 +324,6 @@ func (b *buildlogger) createNewLog(ts time.Time) error {
 }
 
 func (b *buildlogger) flush() error {
-	b.mux.Lock()
-	defer b.mux.Unlock()
-
 	_, err := b.client.AppendLogLines(b.ctx, &internal.LogLines{
 		LogId: b.opts.logID,
 		Lines: b.buffer,

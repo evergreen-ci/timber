@@ -2,8 +2,8 @@ package buildlogger
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
+	"math/rand"
 	"net"
 	"strings"
 	"testing"
@@ -19,6 +19,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 )
+
+var r = rand.New(rand.NewSource(time.Now().Unix()))
 
 type mockClient struct {
 	createErr  bool
@@ -318,24 +320,70 @@ func TestSend(t *testing.T) {
 		require.NotEmpty(t, b.buffer)
 		assert.Equal(t, m.String(), b.buffer[len(b.buffer)-1].Data)
 	})
-	t.Run("FlushAtCapacity", func(t *testing.T) {
+	t.Run("FlushAtCapacityWithNewLineCheck", func(t *testing.T) {
 		mc := &mockClient{}
 		ms := &mockSender{Base: send.NewBase("test")}
 		b := createSender(mc, ms)
 		b.opts.logID = "id"
 		b.opts.MaxBufferSize = 4096
 		size := 256
+		messages := []string{}
+
+		for b.bufferSize < b.opts.MaxBufferSize {
+			if b.bufferSize-size <= 0 {
+				size = b.opts.MaxBufferSize - b.bufferSize
+			}
+
+			m := message.ConvertToComposer(level.Debug, newRandString(size))
+			b.Send(m)
+			require.Empty(t, ms.lastMessage)
+
+			lines := strings.Split(m.String(), "\n")
+			for i, line := range lines {
+				if len(line) == 0 {
+					continue
+				}
+				assert.Nil(t, mc.logLines)
+				assert.Equal(t, time.Now().Unix(), b.buffer[len(b.buffer)-1].Timestamp.Seconds)
+				require.True(t, len(b.buffer) >= len(lines))
+				assert.Equal(t, line, b.buffer[len(b.buffer)-(len(lines)-i)].Data)
+				messages = append(messages, line)
+			}
+		}
+		assert.Equal(t, b.opts.MaxBufferSize, b.bufferSize)
+		m := message.ConvertToComposer(level.Debug, "overflow")
+		b.Send(m)
+		require.Len(t, b.buffer, 1)
+		assert.Equal(t, time.Now().Unix(), b.buffer[0].Timestamp.Seconds)
+		assert.Equal(t, m.String(), b.buffer[0].Data)
+		assert.Equal(t, len(m.String()), b.bufferSize)
+		require.NotNil(t, mc.logLines)
+		assert.Equal(t, b.opts.logID, mc.logLines.LogId)
+		assert.Len(t, mc.logLines.Lines, len(messages))
+		for i := range mc.logLines.Lines {
+			assert.Equal(t, messages[i], mc.logLines.Lines[i].Data)
+		}
+	})
+	t.Run("FlushAtCapacityWithOutNewLineCheck", func(t *testing.T) {
+		mc := &mockClient{}
+		ms := &mockSender{Base: send.NewBase("test")}
+		b := createSender(mc, ms)
+		b.opts.logID = "id"
+		b.opts.MaxBufferSize = 4096
+		b.opts.NewLineCheckOff = true
+		size := 256
 		messages := []message.Composer{}
 
 		for b.bufferSize < b.opts.MaxBufferSize {
 			m := message.ConvertToComposer(level.Debug, newRandString(size))
-			messages = append(messages, m)
-
 			b.Send(m)
 			require.Empty(t, ms.lastMessage)
+
 			assert.Nil(t, mc.logLines)
 			assert.Equal(t, time.Now().Unix(), b.buffer[len(b.buffer)-1].Timestamp.Seconds)
+			assert.NotNil(t, b.buffer)
 			assert.Equal(t, m.String(), b.buffer[len(b.buffer)-1].Data)
+			messages = append(messages, m)
 		}
 		assert.Equal(t, b.opts.MaxBufferSize, b.bufferSize)
 		m := message.ConvertToComposer(level.Debug, "overflow")
@@ -351,18 +399,37 @@ func TestSend(t *testing.T) {
 			assert.Equal(t, messages[i].String(), mc.logLines.Lines[i].Data)
 		}
 	})
+	t.Run("GroupComposer", func(t *testing.T) {
+		mc := &mockClient{}
+		ms := &mockSender{Base: send.NewBase("test")}
+		b := createSender(mc, ms)
+		b.opts.logID = "id"
+		b.opts.MaxBufferSize = 4096
+		b.opts.NewLineCheckOff = true
+
+		m1 := message.ConvertToComposer(level.Debug, "Hello world!\nThis has a new line.")
+		m2 := message.ConvertToComposer(level.Debug, "Goodbye world!")
+		m := message.NewGroupComposer([]message.Composer{m1, m2})
+		b.Send(m)
+		assert.Len(t, b.buffer, 3)
+		assert.Equal(t, len(m1.String())+len(m2.String())-1, b.bufferSize)
+		assert.Equal(t, strings.Split(m1.String(), "\n")[0], b.buffer[0].Data)
+		assert.Equal(t, strings.Split(m1.String(), "\n")[1], b.buffer[1].Data)
+		assert.Equal(t, m2.String(), b.buffer[2].Data)
+	})
 	t.Run("RPCError", func(t *testing.T) {
+		str := "overflow"
 		mc := &mockClient{appendErr: true}
 		ms := &mockSender{Base: send.NewBase("test")}
 		b := createSender(mc, ms)
-		b.opts.MaxBufferSize = 20
+		b.opts.MaxBufferSize = len(str)
 
-		m1 := message.ConvertToComposer(level.Debug, newRandString(b.opts.MaxBufferSize/2))
-		m2 := message.ConvertToComposer(level.Debug, newRandString(b.opts.MaxBufferSize/2+1))
+		m1 := message.ConvertToComposer(level.Debug, str)
+		m2 := message.ConvertToComposer(level.Debug, str)
 		b.Send(m1)
 		b.Send(m2)
 		assert.Len(t, b.buffer, 1)
-		assert.Equal(t, b.opts.MaxBufferSize/2, b.bufferSize)
+		assert.Equal(t, len(m2.String()), b.bufferSize)
 		assert.Equal(t, "append error", ms.lastMessage)
 	})
 }
@@ -451,6 +518,16 @@ func createSender(mc internal.BuildloggerClient, ms send.Sender) *buildlogger {
 func newRandString(size int) string {
 	b := make([]byte, size)
 	_, _ = rand.Read(b)
+	return string(b)
+}
+
+const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()"
+
+func randomString(n int, r *rand.Rand) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letters[r.Int63()%int64(len(letters))]
+	}
 	return string(b)
 }
 
