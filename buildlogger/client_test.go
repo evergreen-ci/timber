@@ -273,7 +273,7 @@ func TestCreateNewLog(t *testing.T) {
 		assert.Equal(t, b.opts.TestName, mc.logData.Info.TestName)
 		assert.Equal(t, b.opts.Trial, mc.logData.Info.Trial)
 		assert.Equal(t, b.opts.ProcessName, mc.logData.Info.ProcName)
-		assert.Equal(t, b.opts.Format, mc.logData.Info.Format)
+		assert.Equal(t, internal.LogFormat(b.opts.Format), mc.logData.Info.Format)
 		assert.Equal(t, b.opts.Arguments, mc.logData.Info.Arguments)
 		assert.Equal(t, b.opts.Mainline, mc.logData.Info.Mainline)
 		assert.Equal(t, expectedTS, mc.logData.CreatedAt)
