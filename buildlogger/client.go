@@ -19,8 +19,10 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+// LogFormat describes the format of the log.
 type LogFormat int32
 
+// Valid LogFormat values.
 const (
 	LogFormatUnknown LogFormat = 0
 	LogFormatText    LogFormat = 1
@@ -37,8 +39,10 @@ func (f LogFormat) validate() error {
 	}
 }
 
+// LogStorage describes the blob storage location type of the log.
 type LogStorage int32
 
+// Valid LogStorage values.
 const (
 	LogStorageS3     LogStorage = 0
 	LogStorageGridFS LogStorage = 1

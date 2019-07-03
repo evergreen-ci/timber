@@ -20,8 +20,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-var r = rand.New(rand.NewSource(time.Now().Unix()))
-
 type mockClient struct {
 	createErr  bool
 	appendErr  bool
