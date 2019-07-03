@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"github.com/evergreen-ci/aviation"
 	"github.com/evergreen-ci/timber/internal"
@@ -100,10 +101,10 @@ type LoggerOptions struct {
 	// over rpc to Cedar.
 	MaxBufferSize int `json:"max_buffer_size" yaml:"max_buffer_size"`
 
-	// Turn checking for new lines in messages off. If this is set to true
+	// Disable checking for new lines in messages. If this is set to true,
 	// make sure log messages do not contain new lines, otherwise the logs
 	// will be stored incorrectly.
-	NewLineCheckOff bool `json:"new_line_check_off" yaml:"new_line_check_off"`
+	DisableNewLineCheck bool `json:"new_line_check_off" yaml:"new_line_check_off"`
 
 	// The gRPC client connection. If nil, a new connection will be
 	// established with the gRPC connection configuration.
@@ -247,7 +248,7 @@ func (b *buildlogger) Send(m message.Composer) {
 
 	_, ok := m.(*message.GroupComposer)
 	var lines []string
-	if b.opts.NewLineCheckOff && !ok {
+	if b.opts.DisableNewLineCheck && !ok {
 		lines = []string{m.String()}
 	} else {
 		lines = strings.Split(m.String(), "\n")
@@ -259,7 +260,7 @@ func (b *buildlogger) Send(m message.Composer) {
 		}
 		logLine := &internal.LogLine{
 			Timestamp: &timestamp.Timestamp{Seconds: ts.Unix(), Nanos: int32(ts.Nanosecond())},
-			Data:      line,
+			Data:      strings.TrimRightFunc(line, unicode.IsSpace),
 		}
 
 		b.buffer = append(b.buffer, logLine)

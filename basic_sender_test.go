@@ -360,18 +360,22 @@ func TestSend(t *testing.T) {
 		b := createSender(mc, ms)
 		b.opts.logID = "id"
 		b.opts.MaxBufferSize = 4096
-		b.opts.NewLineCheckOff = true
+		b.opts.DisableNewLineCheck = true
 		size := 256
 		messages := []message.Composer{}
 
 		for b.bufferSize < b.opts.MaxBufferSize {
+			if b.bufferSize-size <= 0 {
+				size = b.opts.MaxBufferSize - b.bufferSize
+			}
+
 			m := message.ConvertToComposer(level.Debug, newRandString(size))
 			b.Send(m)
 			require.Empty(t, ms.lastMessage)
 
 			assert.Nil(t, mc.logLines)
+			require.NotEmpty(t, b.buffer)
 			assert.Equal(t, time.Now().Unix(), b.buffer[len(b.buffer)-1].Timestamp.Seconds)
-			assert.NotEmpty(t, b.buffer)
 			assert.Equal(t, m.String(), b.buffer[len(b.buffer)-1].Data)
 			messages = append(messages, m)
 		}
@@ -393,7 +397,7 @@ func TestSend(t *testing.T) {
 		ms := &mockSender{Base: send.NewBase("test")}
 		b := createSender(mc, ms)
 		b.opts.MaxBufferSize = 4096
-		b.opts.NewLineCheckOff = true
+		b.opts.DisableNewLineCheck = true
 
 		m1 := message.ConvertToComposer(level.Debug, "Hello world!\nThis has a new line.")
 		m2 := message.ConvertToComposer(level.Debug, "Goodbye world!")
