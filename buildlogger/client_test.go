@@ -381,7 +381,7 @@ func TestSend(t *testing.T) {
 
 			assert.Nil(t, mc.logLines)
 			assert.Equal(t, time.Now().Unix(), b.buffer[len(b.buffer)-1].Timestamp.Seconds)
-			assert.NotNil(t, b.buffer)
+			assert.NotEmpty(t, b.buffer)
 			assert.Equal(t, m.String(), b.buffer[len(b.buffer)-1].Data)
 			messages = append(messages, m)
 		}
@@ -392,7 +392,7 @@ func TestSend(t *testing.T) {
 		assert.Equal(t, time.Now().Unix(), b.buffer[0].Timestamp.Seconds)
 		assert.Equal(t, m.String(), b.buffer[0].Data)
 		assert.Equal(t, len(m.String()), b.bufferSize)
-		require.NotNil(t, mc.logLines)
+		require.NotEmpty(t, mc.logLines)
 		assert.Equal(t, b.opts.logID, mc.logLines.LogId)
 		assert.Len(t, mc.logLines.Lines, len(messages))
 		for i := range mc.logLines.Lines {
@@ -403,7 +403,6 @@ func TestSend(t *testing.T) {
 		mc := &mockClient{}
 		ms := &mockSender{Base: send.NewBase("test")}
 		b := createSender(mc, ms)
-		b.opts.logID = "id"
 		b.opts.MaxBufferSize = 4096
 		b.opts.NewLineCheckOff = true
 
@@ -432,6 +431,20 @@ func TestSend(t *testing.T) {
 		assert.Equal(t, len(m2.String()), b.bufferSize)
 		assert.Equal(t, "append error", ms.lastMessage)
 	})
+	t.Run("ClosedSender", func(t *testing.T) {
+		mc := &mockClient{}
+		ms := &mockSender{Base: send.NewBase("test")}
+		b := createSender(mc, ms)
+		b.opts.logID = "id"
+		b.opts.MaxBufferSize = 4096
+		b.closed = true
+
+		b.Send(message.ConvertToComposer(level.Debug, "should fail"))
+		assert.Empty(t, b.buffer)
+		assert.Zero(t, b.bufferSize)
+		assert.Nil(t, mc.logLines)
+		assert.Equal(t, "cannot call Send on a closed Buildlogger Sender", ms.lastMessage)
+	})
 }
 
 func TestClose(t *testing.T) {
@@ -441,6 +454,7 @@ func TestClose(t *testing.T) {
 		b := createSender(mc, ms)
 
 		assert.NoError(t, b.Close())
+		b.closed = false
 		b.conn = &grpc.ClientConn{}
 		assert.Panics(t, func() { _ = b.Close() })
 	})
@@ -455,6 +469,7 @@ func TestClose(t *testing.T) {
 		assert.Equal(t, b.opts.logID, mc.logEndInfo.LogId)
 		assert.Equal(t, b.opts.exitCode, mc.logEndInfo.ExitCode)
 		assert.Equal(t, time.Now().Unix(), mc.logEndInfo.CompletedAt.Seconds)
+		assert.True(t, b.closed)
 	})
 	t.Run("NonEmptyBuffer", func(t *testing.T) {
 		mc := &mockClient{}
@@ -473,6 +488,17 @@ func TestClose(t *testing.T) {
 		assert.NotNil(t, mc.logLines)
 		assert.Equal(t, b.opts.logID, mc.logLines.LogId)
 		assert.Equal(t, logLine, mc.logLines.Lines[0])
+		assert.True(t, b.closed)
+	})
+	t.Run("NoopWhenClosed", func(t *testing.T) {
+		mc := &mockClient{}
+		ms := &mockSender{Base: send.NewBase("test")}
+		b := createSender(mc, ms)
+		b.closed = true
+
+		require.NoError(t, b.Close())
+		assert.Nil(t, mc.logEndInfo)
+		assert.True(t, b.closed)
 	})
 	t.Run("RPCErrors", func(t *testing.T) {
 		mc := &mockClient{appendErr: true}
@@ -484,10 +510,12 @@ func TestClose(t *testing.T) {
 		assert.Error(t, b.Close())
 		assert.Equal(t, "append error", ms.lastMessage)
 
+		b.closed = false
 		mc.appendErr = false
 		mc.closeErr = true
 		assert.Error(t, b.Close())
 		assert.Equal(t, "close error", ms.lastMessage)
+		assert.True(t, b.closed)
 	})
 }
 
@@ -518,16 +546,6 @@ func createSender(mc internal.BuildloggerClient, ms send.Sender) *buildlogger {
 func newRandString(size int) string {
 	b := make([]byte, size)
 	_, _ = rand.Read(b)
-	return string(b)
-}
-
-const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()"
-
-func randomString(n int, r *rand.Rand) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letters[r.Int63()%int64(len(letters))]
-	}
 	return string(b)
 }
 

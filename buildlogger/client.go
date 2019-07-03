@@ -27,6 +27,7 @@ type buildlogger struct {
 	client     internal.BuildloggerClient
 	buffer     []*internal.LogLine
 	bufferSize int
+	closed     bool
 	*send.Base
 }
 
@@ -230,6 +231,11 @@ func (b *buildlogger) Send(m message.Composer) {
 
 	ts := time.Now()
 
+	if b.closed {
+		b.opts.Local.Send(message.NewErrorMessage(level.Error, errors.New("cannot call Send on a closed Buildlogger Sender")))
+		return
+	}
+
 	_, ok := m.(*message.GroupComposer)
 	var lines []string
 	if b.opts.NewLineCheckOff && !ok {
@@ -264,10 +270,17 @@ func (b *buildlogger) Send(m message.Composer) {
 // client connection was created in NewLogger or MakeLogger, this connection is
 // also closed. Close is thread safe but should only be called once no more
 // calls to Send are needed; after Close has been called any subsequent calls
-// to Send will error.
+// to Send will error. After the first call to Close subsequent calls will
+// no-op.
 func (b *buildlogger) Close() error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	ts := time.Now()
 
+	if b.closed {
+		return nil
+	}
 	catcher := grip.NewBasicCatcher()
 
 	if len(b.buffer) > 0 {
@@ -291,6 +304,8 @@ func (b *buildlogger) Close() error {
 	if b.conn != nil {
 		catcher.Add(b.conn.Close())
 	}
+
+	b.closed = true
 
 	return catcher.Resolve()
 }
