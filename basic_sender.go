@@ -1,4 +1,4 @@
-package buildlogger
+package timber
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/evergreen-ci/aviation"
-	"github.com/evergreen-ci/timber/buildlogger/internal"
+	"github.com/evergreen-ci/timber/internal"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/level"
@@ -18,6 +18,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
+
+// TODO: figure out ideal size for this
+const defaultMaxBufferSize = 4096
 
 // LogFormat describes the format of the log.
 type LogFormat int32
@@ -73,45 +76,45 @@ type buildlogger struct {
 // LoggerOptions support the use and creation of a Buildlogger log.
 type LoggerOptions struct {
 	// Unique information to identify the log.
-	Project     string
-	Version     string
-	Variant     string
-	TaskName    string
-	TaskID      string
-	Execution   int32
-	TestName    string
-	Trial       int32
-	ProcessName string
-	Format      LogFormat
-	Arguments   map[string]string
-	Mainline    bool
+	Project     string            `json:"project" yaml:"project"`
+	Version     string            `json:"version" yaml:"version"`
+	Variant     string            `json:"variant" yaml:"variant"`
+	TaskName    string            `json:"task_name" yaml:"task_name"`
+	TaskID      string            `json:"task_id" yaml:"task_id"`
+	Execution   int32             `json:"execution" yaml:"execution"`
+	TestName    string            `json:"test_name" yaml:"test_name"`
+	Trial       int32             `json:"trial" yaml:"trial"`
+	ProcessName string            `json:"proc_name" yaml:"proc_name"`
+	Format      LogFormat         `json:"format" yaml:"format"`
+	Arguments   map[string]string `json:"arguments" yaml:"arguments"`
+	Mainline    bool              `json:"mainline" yaml:"mainline"`
 
 	// Storage location type for this log.
-	Storage LogStorage
+	Storage LogStorage `json:"storage" yaml:"storage"`
 
 	// Configure a local sender for "fallback" operations and to collect
 	// the location of the buildlogger output.
-	Local send.Sender
+	Local send.Sender `json:"-" yaml:"-"`
 
 	// The number max number of bytes to buffer before sending log data
 	// over rpc to Cedar.
-	MaxBufferSize int
+	MaxBufferSize int `json:"max_buffer_size" yaml:"max_buffer_size"`
 
 	// Turn checking for new lines in messages off. If this is set to true
 	// make sure log messages do not contain new lines, otherwise the logs
 	// will be stored incorrectly.
-	NewLineCheckOff bool
+	NewLineCheckOff bool `json:"new_line_check_off" yaml:"new_line_check_off"`
 
 	// The gRPC client connection. If nil, a new connection will be
 	// established with the gRPC connection configuration.
-	ClientConn *grpc.ClientConn
+	ClientConn *grpc.ClientConn `json:"-" yaml:"-"`
 
 	// Configuration for gRPC client connection.
-	RPCAddress string
-	Insecure   bool
-	CAFile     string
-	CertFile   string
-	KeyFile    string
+	RPCAddress string `json:"rpc_address" yaml:"rpc_address"`
+	Insecure   bool   `json:"insecure" yaml:"insecure"`
+	CAFile     string `json:"ca_file" yaml:"ca_file"`
+	CertFile   string `json:"cert_file" yaml:"cert_file"`
+	KeyFile    string `json:"key_file" yaml:"key_file"`
 
 	logID    string
 	exitCode int32
@@ -139,8 +142,7 @@ func (opts *LoggerOptions) validate() error {
 	}
 
 	if opts.MaxBufferSize == 0 {
-		// TODO: figure out ideal default size
-		opts.MaxBufferSize = 4096
+		opts.MaxBufferSize = defaultMaxBufferSize
 	}
 
 	return nil

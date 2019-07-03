@@ -1,4 +1,4 @@
-package buildlogger
+package timber
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/evergreen-ci/timber/buildlogger/internal"
+	"github.com/evergreen-ci/timber/internal"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/mongodb/grip/level"
 	"github.com/mongodb/grip/message"

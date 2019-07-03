@@ -2,8 +2,8 @@ buildDir := build
 srcFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -name "*_test.go" -not -path "*\#*")
 testFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -path "*\#*")
 
-packages := ./ ./buildlogger ./buildlogger/internal
-lintPackages := timber buildlogger buildlogger-internal
+packages := ./ ./internal
+lintPackages := timber internal
 # override the go binary path if set
 ifneq (,$(GO_BIN_PATH))
 gobin := $(GO_BIN_PATH)
