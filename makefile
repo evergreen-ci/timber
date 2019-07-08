@@ -2,8 +2,8 @@ buildDir := build
 srcFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -name "*_test.go" -not -path "*\#*")
 testFiles := $(shell find . -name "*.go" -not -path "./$(buildDir)/*" -not -path "*\#*")
 
-packages := ./ ./rpc ./rpc/internal
-lintPackages := timber rpc rpc-internal
+packages := ./ ./internal
+lintPackages := timber internal
 # override the go binary path if set
 ifneq (,$(GO_BIN_PATH))
 gobin := $(GO_BIN_PATH)
@@ -21,8 +21,8 @@ lintDeps := github.com/alecthomas/gometalinter
 lintArgs := --tests --deadline=13m --vendor
 #   gotype produces false positives because it reads .a files which
 #   are rarely up to date.
-lintArgs += --disable="gotype" --disable="gosec" --disable="gocyclo" --disable="golint" 
-lintArgs += --disable="staticcheck"
+lintArgs += --disable="gotype" --disable="gosec" --disable="gocyclo"
+lintArgs += --disable="staticcheck" --disable="maligned"
 lintArgs += --skip="build"
 lintArgs += --exclude="rpc/internal/.*.pb.go"
 #   enable and configure additional linters
@@ -128,12 +128,13 @@ $(buildDir)/output.lint:$(buildDir)/run-linter $(buildDir)/ .FORCE
 
 
 proto:vendor/cedar.proto
-	@mkdir -p rpc/internal
-	protoc --go_out=plugins=grpc:rpc/internal vendor/cedar.proto
-	mv rpc/internal/vendor/cedar.pb.go rpc/internal/cedar.pb.go
-	rm -rf rpc/internal/vendor
+	@mkdir -p buildlogger/internal
+	protoc --go_out=plugins=grpc:buildlogger/internal vendor/cedar.proto
+	mv buildlogger/internal/vendor/cedar.pb.go buildlogger/internal/cedar.pb.go
+	rm -rf buildlogger/internal/vendor
 clean:
-	rm -rf rpc/internal/*.pb.go
+	rm -rf buildlogger/internal/*.pb.go
+	rm vendor/cedar.proto
 
 vendor/cedar.proto:
 	curl -L https://raw.githubusercontent.com/evergreen-ci/cedar/master/buildlogger.proto -o $@
@@ -146,6 +147,10 @@ vendor-clean:
 	rm -rf vendor/github.com/mongodb/grip/vendor/golang.org/x/sys/
 	rm -rf vendor/github.com/mongodb/grip/vendor/github.com/pkg/errors/
 	rm -rf vendor/github.com/mongodb/grip/vendor/github.com/stretchr/testify/
+	rm -rf vendor/github.com/evergreen-ci/aviation/vendor/google.golang.org/grpc/
+	rm -rf vendor/github.com/evergreen-ci/aviation/vendor/github.com/mongodb/grip/
+	rm -rf vendor/github.com/evergreen-ci/aviation/vendor/github.com/pkg/errors/
+	rm -rf vendor/github.com/evergreen-ci/aviation/vendor/github.com/stretchr/testify/
 	find vendor/ -name "*.gif" -o -name "*.gz" -o -name "*.png" -o -name "*.ico" -o -name "*.dat" -o -name "*testdata" | xargs rm -rf
 	find vendor/ -name .git | xargs rm -rf
 
