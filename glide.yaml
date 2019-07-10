@@ -11,3 +11,5 @@ import:
   - package: github.com/stretcher/testify
   - package: github.com/evergreen-ci/aviation
   - package: github.com/evergreen-ci/poplar
+  - package: go.mongodb.org/mongo-driver
+  - package: github.com/evergreen-ci/pail

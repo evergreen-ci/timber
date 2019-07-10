@@ -160,6 +160,10 @@ vendor-clean:
 	rm -rf vendor/github.com/evergreen-ci/poplar/vendor/golang.org/x/text/
 	rm -rf vendor/github.com/evergreen-ci/poplar/vendor/google.golang.org/genproto/
 	rm -rf vendor/github.com/evergreen-ci/poplar/vendor/google.golang.org/grpc/
+	rm -rf vendor/github.com/evergreen-ci/pail/vendor/go.mongodb.org/mongo-driver/
+	rm -rf vendor/github.com/evergreen-ci/pail/vendor/github.com/mongodb/grip/
+	rm -rf vendor/github.com/evergreen-ci/pail/vendor/github.com/pkg/errors/
+	rm -rf vendor/github.com/evergreen-ci/pail/vendor/github.com/stretchr/testify/
 	find vendor/ -name "*.gif" -o -name "*.gz" -o -name "*.png" -o -name "*.ico" -o -name "*.dat" -o -name "*testdata" | xargs rm -rf
 	find vendor/ -name .git | xargs rm -rf
 
