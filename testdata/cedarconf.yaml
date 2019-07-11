@@ -1,4 +1,2 @@
 bucket:
-  aws_key: AKIAIEUYKMPTFFCAELNQ
-  aws_secret: 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
   build_logs_bucket: pail-s3-test
