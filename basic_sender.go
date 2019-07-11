@@ -140,6 +140,7 @@ func (opts *LoggerOptions) validate() error {
 
 	if opts.Local == nil {
 		opts.Local = send.MakeNative()
+		opts.Local.SetName("local")
 	}
 
 	if opts.MaxBufferSize == 0 {

@@ -72,6 +72,12 @@ $(buildDir)/generate-lint:cmd/generate-lint/generate-lint.go
 	$(gobin) build -o $@ $<
 # end generate lint
 
+# benchmark setup targets
+$(buildDir)/run-benchmarks:cmd/benchmarks/run-benchmarks.go
+	@mkdir -p $(buildDir)
+	$(gobin) build -o $@ $<
+# end benchmark setup targets
+
 
 testArgs := -v
 ifneq (,$(RUN_TEST))
@@ -97,9 +103,9 @@ test:
 	GOPATH=$(gopath) $(gobin) test $(testArgs) $(if $(DISABLE_COVERAGE),, -cover) $(packages) | tee $(buildDir)/test.out
 	@grep -s -q -e "^PASS" $(buildDir)/test.out
 .PHONY: benchmark
-benchmark:
-	@mkdir -p $(buildDir)
-	GOPATH=$(gopath) $(gobin) test $(testArgs) -bench=$(benchPattern) $(if $(RUN_TEST),, -run=^^$$) | tee $(buildDir)/bench.out
+benchmark: $(buildDir)/run-benchmarks $(buildDir)/ .FORCE
+	#@mkdir -p $(buildDir)
+	#GOPATH=$(gopath) $(gobin) test $(testArgs) -bench=$(benchPattern) $(if $(RUN_TEST),, -run=^^$$) | tee $(buildDir)/bench.out
 coverage:$(buildDir)/cover.out
 	@go tool cover -func=$< | sed -E 's%github.com/.*/jasper/%%' | column -t
 coverage-html:$(buildDir)/cover.html
