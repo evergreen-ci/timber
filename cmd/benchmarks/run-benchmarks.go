@@ -13,8 +13,12 @@ func main() {
 	defer cancel()
 
 	fmt.Println("running basic sender benchmark...")
-	err := timber.RunBasicSenderBenchmark(ctx)
-	if err != nil {
-		log.Fatal(err)
+	if err := timber.RunBasicSenderBenchmark(ctx); err != nil {
+		log.Println(err)
+	}
+
+	fmt.Println("running flush benchmark...")
+	if err := timber.RunFlushBenchmark(ctx); err != nil {
+		log.Println(err)
 	}
 }

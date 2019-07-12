@@ -104,8 +104,7 @@ test:
 	@grep -s -q -e "^PASS" $(buildDir)/test.out
 .PHONY: benchmark
 benchmark: $(buildDir)/run-benchmarks $(buildDir)/ .FORCE
-	#@mkdir -p $(buildDir)
-	#GOPATH=$(gopath) $(gobin) test $(testArgs) -bench=$(benchPattern) $(if $(RUN_TEST),, -run=^^$$) | tee $(buildDir)/bench.out
+	./$(buildDir)/run-benchmarks
 coverage:$(buildDir)/cover.out
 	@go tool cover -func=$< | sed -E 's%github.com/.*/jasper/%%' | column -t
 coverage-html:$(buildDir)/cover.html
