@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	defaultMaxBufferSize int = 0e7
+	defaultMaxBufferSize int = 1e7
 	defaultFlushInterval     = time.Minute
 )
 
