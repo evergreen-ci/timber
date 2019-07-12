@@ -46,7 +46,7 @@ func RunBasicSenderBenchmark(ctx context.Context) error {
 		return errors.Wrap(err, "failed to create top level directory")
 	}
 
-	logSizes := []int{1e9}
+	logSizes := []int{1e5, 1e7}
 	var combinedResults string
 	for _, logSize := range logSizes {
 		suitePrefix := filepath.Join(prefix, fmt.Sprintf("%d", logSize))
@@ -54,7 +54,7 @@ func RunBasicSenderBenchmark(ctx context.Context) error {
 			return errors.Wrap(err, "failed to create subdirectory")
 		}
 
-		suite := getSuite(logSize)
+		suite := getBasicSenderSuite(logSize)
 		results, err := suite.Run(ctx, suitePrefix)
 		if err != nil {
 			combinedResults += fmt.Sprintf("Log Size: %d\n===============\nError: %s\n", logSize, err)
@@ -131,99 +131,63 @@ func teardownBenchmark(ctx context.Context) error {
 	return catcher.Resolve()
 }
 
-func getSuite(logSize int) poplar.BenchmarkSuite {
+func getBasicSenderSuite(logSize int) poplar.BenchmarkSuite {
 	return poplar.BenchmarkSuite{
 		{
-			CaseName:         "1KBBuffer",
-			Bench:            getBenchmark(logSize, 1e3),
-			MinRuntime:       time.Millisecond,
-			MaxRuntime:       10 * time.Minute,
-			Timeout:          20 * time.Minute,
-			IterationTimeout: 10 * time.Minute,
-			Count:            1,
-			MinIterations:    1,
-			MaxIterations:    10,
-			Recorder:         poplar.RecorderPerf,
-		},
-		{
-			CaseName:         "10KBBuffer",
-			Bench:            getBenchmark(logSize, 1e4),
-			MinRuntime:       time.Millisecond,
-			MaxRuntime:       10 * time.Minute,
-			Timeout:          20 * time.Minute,
-			IterationTimeout: 10 * time.Minute,
-			Count:            1,
-			MinIterations:    1,
-			MaxIterations:    10,
-			Recorder:         poplar.RecorderPerf,
-		},
-		{
 			CaseName:         "100KBBuffer",
-			Bench:            getBenchmark(logSize, 1e5),
+			Bench:            getBasicSenderBenchmark(logSize, 1e5),
 			MinRuntime:       time.Millisecond,
 			MaxRuntime:       10 * time.Minute,
 			Timeout:          20 * time.Minute,
 			IterationTimeout: 10 * time.Minute,
 			Count:            1,
 			MinIterations:    1,
-			MaxIterations:    10,
+			MaxIterations:    2,
 			Recorder:         poplar.RecorderPerf,
 		},
 		{
 
 			CaseName:         "1MBBuffer",
-			Bench:            getBenchmark(logSize, 1e6),
+			Bench:            getBasicSenderBenchmark(logSize, 1e6),
 			MinRuntime:       time.Millisecond,
 			MaxRuntime:       10 * time.Minute,
 			Timeout:          20 * time.Minute,
-			IterationTimeout: 9 * time.Minute,
+			IterationTimeout: 10 * time.Minute,
 			Count:            1,
 			MinIterations:    1,
-			MaxIterations:    10,
+			MaxIterations:    2,
 			Recorder:         poplar.RecorderPerf,
 		},
 		{
 
 			CaseName:         "10MBBuffer",
-			Bench:            getBenchmark(logSize, 1e7),
+			Bench:            getBasicSenderBenchmark(logSize, 1e7),
 			MinRuntime:       time.Millisecond,
 			MaxRuntime:       10 * time.Minute,
 			Timeout:          20 * time.Minute,
 			IterationTimeout: 10 * time.Minute,
 			Count:            1,
 			MinIterations:    1,
-			MaxIterations:    10,
+			MaxIterations:    2,
 			Recorder:         poplar.RecorderPerf,
 		},
 		{
 
 			CaseName:         "100MBBuffer",
-			Bench:            getBenchmark(logSize, 1e8),
+			Bench:            getBasicSenderBenchmark(logSize, 1e8),
 			MinRuntime:       time.Millisecond,
 			MaxRuntime:       10 * time.Minute,
 			Timeout:          20 * time.Minute,
 			IterationTimeout: 10 * time.Minute,
 			Count:            1,
 			MinIterations:    1,
-			MaxIterations:    10,
-			Recorder:         poplar.RecorderPerf,
-		},
-		{
-			CaseName:         "1GBBuffer",
-			Bench:            getBenchmark(logSize, 1e9),
-			MinRuntime:       time.Millisecond,
-			MaxRuntime:       10 * time.Minute,
-			Timeout:          20 * time.Minute,
-			IterationTimeout: 10 * time.Minute,
-			Count:            1,
-			MinIterations:    1,
-			MaxIterations:    10,
+			MaxIterations:    2,
 			Recorder:         poplar.RecorderPerf,
 		},
 	}
 }
 
-func getBenchmark(logSize, maxBufferSize int) poplar.Benchmark {
+func getBasicSenderBenchmark(logSize, maxBufferSize int) poplar.Benchmark {
 	numLines := logSize / lineLength
 	if numLines == 0 {
 		numLines = 1
