@@ -31,6 +31,8 @@ const (
 	lineLength = 200
 )
 
+// RunBasicSenderBenchmarks runs a poplar benchmark suite for timber's basic
+// sender implementation.
 func RunBasicSenderBenchmark(ctx context.Context) error {
 	srvCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -80,6 +82,8 @@ func RunBasicSenderBenchmark(ctx context.Context) error {
 	return nil
 }
 
+// RunFlushBenchmark runs a poplar benchmark suite for the underlying flush
+// function used in timber's basic sender implementation.
 func RunFlushBenchmark(ctx context.Context) error {
 	srvCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
