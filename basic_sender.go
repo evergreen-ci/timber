@@ -20,8 +20,10 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-// TODO: figure out ideal size for this
-const defaultMaxBufferSize = 4096
+const (
+	defaultMaxBufferSize int = 0e7
+	defaultFlushInterval     = time.Minute
+)
 
 // LogFormat describes the format of the log.
 type LogFormat int32
@@ -70,6 +72,7 @@ type buildlogger struct {
 	client     internal.BuildloggerClient
 	buffer     []*internal.LogLine
 	bufferSize int
+	lastFlush  time.Time
 	closed     bool
 	*send.Base
 }
@@ -98,8 +101,13 @@ type LoggerOptions struct {
 	Local send.Sender `json:"-" yaml:"-"`
 
 	// The number max number of bytes to buffer before sending log data
-	// over rpc to Cedar.
+	// over rpc to Cedar. Defaults to 10MB.
 	MaxBufferSize int `json:"max_buffer_size" yaml:"max_buffer_size"`
+	// The interval at which to flush log lines, regardless of whether the
+	// max buffer size has been reached or not. Setting FlushInterval to a
+	// duration less than 0 will disable timed flushes. Defaults to 1
+	// minute.
+	FlushInterval time.Duration `json:"flush_interval" yaml:"flush_interval"`
 
 	// Disable checking for new lines in messages. If this is set to true,
 	// make sure log messages do not contain new lines, otherwise the logs
@@ -145,6 +153,10 @@ func (opts *LoggerOptions) validate() error {
 
 	if opts.MaxBufferSize == 0 {
 		opts.MaxBufferSize = defaultMaxBufferSize
+	}
+
+	if opts.FlushInterval == 0 {
+		opts.FlushInterval = defaultFlushInterval
 	}
 
 	return nil
@@ -223,6 +235,10 @@ func MakeLogger(ctx context.Context, name string, opts *LoggerOptions) (send.Sen
 
 	if err := b.createNewLog(ts); err != nil {
 		return nil, err
+	}
+
+	if opts.FlushInterval > 0 {
+		go b.timedFlush()
 	}
 
 	return b, nil
@@ -348,6 +364,27 @@ func (b *buildlogger) createNewLog(ts time.Time) error {
 	return nil
 }
 
+func (b *buildlogger) timedFlush() {
+	timer := time.NewTimer(b.opts.FlushInterval)
+	defer func() {
+		_ = timer.Stop()
+	}()
+
+	for {
+		select {
+		case <-b.ctx.Done():
+			return
+		case <-timer.C:
+			if len(b.buffer) > 0 && time.Since(b.lastFlush) >= b.opts.FlushInterval {
+				if err := b.flush(); err != nil {
+					b.opts.Local.Send(message.NewErrorMessage(level.Error, err))
+				}
+			}
+			_ = timer.Reset(b.opts.FlushInterval)
+		}
+	}
+}
+
 func (b *buildlogger) flush() error {
 	_, err := b.client.AppendLogLines(b.ctx, &internal.LogLines{
 		LogId: b.opts.logID,
@@ -359,6 +396,7 @@ func (b *buildlogger) flush() error {
 
 	b.buffer = []*internal.LogLine{}
 	b.bufferSize = 0
+	b.lastFlush = time.Now()
 
 	return nil
 }
