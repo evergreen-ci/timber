@@ -73,6 +73,7 @@ type buildlogger struct {
 	buffer     []*internal.LogLine
 	bufferSize int
 	lastFlush  time.Time
+	timer      *time.Timer
 	closed     bool
 	*send.Base
 }
@@ -365,22 +366,22 @@ func (b *buildlogger) createNewLog(ts time.Time) error {
 }
 
 func (b *buildlogger) timedFlush() {
-	timer := time.NewTimer(b.opts.FlushInterval)
+	b.timer = time.NewTimer(b.opts.FlushInterval)
 	defer func() {
-		_ = timer.Stop()
+		_ = b.timer.Stop()
 	}()
 
 	for {
 		select {
 		case <-b.ctx.Done():
 			return
-		case <-timer.C:
+		case <-b.timer.C:
 			if len(b.buffer) > 0 && time.Since(b.lastFlush) >= b.opts.FlushInterval {
 				if err := b.flush(); err != nil {
 					b.opts.Local.Send(message.NewErrorMessage(level.Error, err))
 				}
 			}
-			_ = timer.Reset(b.opts.FlushInterval)
+			_ = b.timer.Reset(b.opts.FlushInterval)
 		}
 	}
 }

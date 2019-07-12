@@ -212,6 +212,10 @@ func TestNewLogger(t *testing.T) {
 		assert.Equal(t, ctx, b.ctx)
 		assert.NotNil(t, b.buffer)
 		assert.Equal(t, opts, b.opts)
+		assert.Equal(t, defaultMaxBufferSize, b.opts.MaxBufferSize)
+		assert.Equal(t, defaultFlushInterval, b.opts.FlushInterval)
+		time.Sleep(time.Second)
+		assert.NotNil(t, b.timer)
 		srv.createLog = false
 	})
 	t.Run("WithoutExistingClient", func(t *testing.T) {
@@ -234,7 +238,28 @@ func TestNewLogger(t *testing.T) {
 		assert.Equal(t, ctx, b.ctx)
 		assert.NotNil(t, b.buffer)
 		assert.Equal(t, opts, b.opts)
+		assert.Equal(t, defaultMaxBufferSize, b.opts.MaxBufferSize)
+		assert.Equal(t, defaultFlushInterval, b.opts.FlushInterval)
+		time.Sleep(time.Second)
+		assert.NotNil(t, b.timer)
 		srv.createLog = false
+	})
+	t.Run("NegativeFlushInterval", func(t *testing.T) {
+		name := "test"
+		l := send.LevelInfo{Default: level.Debug, Threshold: level.Debug}
+		opts := &LoggerOptions{
+			ClientConn:    conn,
+			Local:         &mockSender{Base: send.NewBase("test")},
+			FlushInterval: -1,
+		}
+
+		s, err := NewLogger(ctx, name, l, opts)
+		require.NoError(t, err)
+		require.NotNil(t, s)
+		b, ok := s.(*buildlogger)
+		require.True(t, ok)
+		time.Sleep(time.Second)
+		assert.Nil(t, b.timer)
 	})
 	t.Run("InvalidOptions", func(t *testing.T) {
 		s, err := NewLogger(ctx, "test3", send.LevelInfo{}, &LoggerOptions{})
