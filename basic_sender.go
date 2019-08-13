@@ -367,9 +367,7 @@ func (b *buildlogger) createNewLog(ts time.Time) error {
 
 func (b *buildlogger) timedFlush() {
 	b.timer = time.NewTimer(b.opts.FlushInterval)
-	defer func() {
-		_ = b.timer.Stop()
-	}()
+	defer b.timer.Stop()
 
 	for {
 		select {

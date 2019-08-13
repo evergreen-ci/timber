@@ -31,7 +31,7 @@ const (
 	lineLength = 200
 )
 
-// RunBasicSenderBenchmarks runs a poplar benchmark suite for timber's basic
+// RunBasicSenderBenchmark runs a poplar benchmark suite for timber's basic
 // sender implementation.
 func RunBasicSenderBenchmark(ctx context.Context) error {
 	srvCtx, cancel := context.WithCancel(ctx)
