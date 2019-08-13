@@ -96,7 +96,7 @@ func RunFlushBenchmark(ctx context.Context) error {
 		}
 	}()
 
-	prefix := fmt.Sprintf("flush__benchmark_report_%d", time.Now().Unix())
+	prefix := fmt.Sprintf("flush_benchmark_report_%d", time.Now().Unix())
 	if err := os.Mkdir(prefix, os.ModePerm); err != nil {
 		return errors.Wrap(err, "failed to create top level directory")
 	}
