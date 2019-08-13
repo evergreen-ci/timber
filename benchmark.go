@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -41,7 +40,7 @@ func RunBasicSenderBenchmark(ctx context.Context) error {
 	}
 	defer func() {
 		if err := teardownBenchmark(srvCtx); err != nil {
-			log.Println(err)
+			grip.Error(err)
 		}
 	}()
 
@@ -92,7 +91,7 @@ func RunFlushBenchmark(ctx context.Context) error {
 	}
 	defer func() {
 		if err := teardownBenchmark(srvCtx); err != nil {
-			log.Println(err)
+			grip.Error(err)
 		}
 	}()
 
