@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/evergreen-ci/timber"
+	"github.com/mongodb/grip"
 )
 
 func main() {
@@ -14,11 +14,11 @@ func main() {
 
 	fmt.Println("running basic sender benchmark...")
 	if err := timber.RunBasicSenderBenchmark(ctx); err != nil {
-		log.Println(err)
+		grip.Error(err)
 	}
 
 	fmt.Println("running flush benchmark...")
 	if err := timber.RunFlushBenchmark(ctx); err != nil {
-		log.Println(err)
+		grip.Error(err)
 	}
 }
