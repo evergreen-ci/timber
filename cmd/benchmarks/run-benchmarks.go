@@ -2,22 +2,22 @@ package main
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/evergreen-ci/timber"
 	"github.com/mongodb/grip"
+	"github.com/mongodb/grip/level"
 )
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	fmt.Println("running basic sender benchmark...")
+	grip.Log(level.Info, "running basic sender benchmark...")
 	if err := timber.RunBasicSenderBenchmark(ctx); err != nil {
 		grip.Error(err)
 	}
 
-	fmt.Println("running flush benchmark...")
+	grip.Log(level.Info, "running flush benchmark...")
 	if err := timber.RunFlushBenchmark(ctx); err != nil {
 		grip.Error(err)
 	}
