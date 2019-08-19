@@ -72,6 +72,12 @@ $(buildDir)/generate-lint:cmd/generate-lint/generate-lint.go
 	$(gobin) build -o $@ $<
 # end generate lint
 
+# benchmark setup targets
+$(buildDir)/run-benchmarks:cmd/benchmarks/run-benchmarks.go
+	@mkdir -p $(buildDir)
+	$(gobin) build -o $@ $<
+# end benchmark setup targets
+
 
 testArgs := -v
 ifneq (,$(RUN_TEST))
@@ -97,9 +103,8 @@ test:
 	GOPATH=$(gopath) $(gobin) test $(testArgs) $(if $(DISABLE_COVERAGE),, -cover) $(packages) | tee $(buildDir)/test.out
 	@grep -s -q -e "^PASS" $(buildDir)/test.out
 .PHONY: benchmark
-benchmark:
-	@mkdir -p $(buildDir)
-	GOPATH=$(gopath) $(gobin) test $(testArgs) -bench=$(benchPattern) $(if $(RUN_TEST),, -run=^^$$) | tee $(buildDir)/bench.out
+benchmark: $(buildDir)/run-benchmarks $(buildDir)/ .FORCE
+	./$(buildDir)/run-benchmarks
 coverage:$(buildDir)/cover.out
 	@go tool cover -func=$< | sed -E 's%github.com/.*/jasper/%%' | column -t
 coverage-html:$(buildDir)/cover.html
@@ -128,13 +133,13 @@ $(buildDir)/output.lint:$(buildDir)/run-linter $(buildDir)/ .FORCE
 
 
 proto:vendor/cedar.proto
-	@mkdir -p buildlogger/internal
-	protoc --go_out=plugins=grpc:buildlogger/internal vendor/cedar.proto
-	mv buildlogger/internal/vendor/cedar.pb.go buildlogger/internal/cedar.pb.go
-	rm -rf buildlogger/internal/vendor
+	@mkdir -p internal
+	protoc --go_out=plugins=grpc:internal vendor/cedar.proto
+	mv internal/vendor/cedar.pb.go internal/cedar.pb.go
+	rm -rf internal/vendor
 clean:
-	rm -rf buildlogger/internal/*.pb.go
-	rm vendor/cedar.proto
+	rm -rf internal/*.pb.go
+	rm -f vendor/cedar.proto
 
 vendor/cedar.proto:
 	curl -L https://raw.githubusercontent.com/evergreen-ci/cedar/master/buildlogger.proto -o $@
@@ -151,6 +156,19 @@ vendor-clean:
 	rm -rf vendor/github.com/evergreen-ci/aviation/vendor/github.com/mongodb/grip/
 	rm -rf vendor/github.com/evergreen-ci/aviation/vendor/github.com/pkg/errors/
 	rm -rf vendor/github.com/evergreen-ci/aviation/vendor/github.com/stretchr/testify/
+	rm -rf vendor/github.com/evergreen-ci/poplar/vendor/github.com/golang/protobuf/
+	rm -rf vendor/github.com/evergreen-ci/poplar/vendor/github.com/mongodb/grip/
+	rm -rf vendor/github.com/evergreen-ci/poplar/vendor/github.com/pkg/errors/
+	rm -rf vendor/github.com/evergreen-ci/poplar/vendor/github.com/stretchr/testify/
+	rm -rf vendor/github.com/evergreen-ci/poplar/vendor/golang.org/x/net/
+	rm -rf vendor/github.com/evergreen-ci/poplar/vendor/golang.org/x/sys/
+	rm -rf vendor/github.com/evergreen-ci/poplar/vendor/golang.org/x/text/
+	rm -rf vendor/github.com/evergreen-ci/poplar/vendor/google.golang.org/genproto/
+	rm -rf vendor/github.com/evergreen-ci/poplar/vendor/google.golang.org/grpc/
+	rm -rf vendor/github.com/evergreen-ci/pail/vendor/go.mongodb.org/mongo-driver/
+	rm -rf vendor/github.com/evergreen-ci/pail/vendor/github.com/mongodb/grip/
+	rm -rf vendor/github.com/evergreen-ci/pail/vendor/github.com/pkg/errors/
+	rm -rf vendor/github.com/evergreen-ci/pail/vendor/github.com/stretchr/testify/
 	find vendor/ -name "*.gif" -o -name "*.gz" -o -name "*.png" -o -name "*.ico" -o -name "*.dat" -o -name "*testdata" | xargs rm -rf
 	find vendor/ -name .git | xargs rm -rf
 
