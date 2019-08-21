@@ -215,7 +215,9 @@ func TestNewLogger(t *testing.T) {
 		assert.Equal(t, defaultMaxBufferSize, b.opts.MaxBufferSize)
 		assert.Equal(t, defaultFlushInterval, b.opts.FlushInterval)
 		time.Sleep(time.Second)
+		b.mu.Lock()
 		assert.NotNil(t, b.timer)
+		b.mu.Unlock()
 		srv.createLog = false
 	})
 	t.Run("WithoutExistingClient", func(t *testing.T) {
@@ -241,7 +243,9 @@ func TestNewLogger(t *testing.T) {
 		assert.Equal(t, defaultMaxBufferSize, b.opts.MaxBufferSize)
 		assert.Equal(t, defaultFlushInterval, b.opts.FlushInterval)
 		time.Sleep(time.Second)
+		b.mu.Lock()
 		assert.NotNil(t, b.timer)
+		b.mu.Unlock()
 		srv.createLog = false
 	})
 	t.Run("NegativeFlushInterval", func(t *testing.T) {
@@ -443,21 +447,29 @@ func TestSend(t *testing.T) {
 		require.NotEmpty(t, b.buffer)
 		go b.timedFlush()
 		time.Sleep(2 * time.Second)
+		b.mu.Lock()
 		require.Empty(t, b.buffer)
+		b.mu.Unlock()
 		require.Len(t, mc.logLines.Lines, 1)
 		assert.Equal(t, m.String(), mc.logLines.Lines[0].Data)
 
 		// flush resets timer
 		m = message.ConvertToComposer(level.Debug, newRandString(size))
 		b.Send(m)
+		b.mu.Lock()
 		require.NotEmpty(t, b.buffer)
+		b.mu.Unlock()
 		time.Sleep(2 * time.Second)
+		b.mu.Lock()
 		require.Empty(t, b.buffer)
+		b.mu.Unlock()
 		require.Len(t, mc.logLines.Lines, 1)
 		assert.Equal(t, m.String(), mc.logLines.Lines[0].Data)
 
 		// recent last flush
+		b.mu.Lock()
 		b.lastFlush = time.Now().Add(time.Minute)
+		b.mu.Unlock()
 		b.Send(m)
 		require.NotEmpty(t, b.buffer)
 		time.Sleep(2 * time.Second)
