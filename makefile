@@ -169,6 +169,11 @@ vendor-clean:
 	rm -rf vendor/github.com/evergreen-ci/pail/vendor/github.com/mongodb/grip/
 	rm -rf vendor/github.com/evergreen-ci/pail/vendor/github.com/pkg/errors/
 	rm -rf vendor/github.com/evergreen-ci/pail/vendor/github.com/stretchr/testify/
+	rm -rf vendor/go.mongodb.org/mongo-driver/vendor/github.com/pkg/errors/
+	rm -rf vendor/go.mongodb.org/mongo-driver/vendor/github.com/stretchr/testify/
+	rm -rf vendor/go.mongodb.org/mongo-driver/vendor/golang.org/x/net/
+	rm -rf vendor/go.mongodb.org/mongo-driver/vendor/golang.org/x/sys/
+	rm -rf vendor/go.mongodb.org/mongo-driver/vendor/golang.org/x/text/
 	find vendor/ -name "*.gif" -o -name "*.gz" -o -name "*.png" -o -name "*.ico" -o -name "*.dat" -o -name "*testdata" | xargs rm -rf
 	find vendor/ -name .git | xargs rm -rf
 

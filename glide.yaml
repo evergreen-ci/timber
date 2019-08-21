@@ -12,3 +12,4 @@ import:
   - package: github.com/evergreen-ci/aviation
   - package: github.com/evergreen-ci/poplar
   - package: github.com/evergreen-ci/pail
+  - package: go.mongodb.org/mongo-driver
