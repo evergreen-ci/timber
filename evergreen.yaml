@@ -40,7 +40,6 @@ variables:
         params:
           directory: gopath/src/github.com/evergreen-ci/timber
       - func: set-up-mongodb
-      - func: setup-credentials
       - func: run-make
         vars: { target: "${task_name}" }
 
@@ -144,7 +143,6 @@ tasks:
         params:
           directory: gopath/src/github.com/evergreen-ci/timber
       - func: set-up-mongodb
-      - func: setup-credentials
       - func: run-make
         vars:
           target: "coverage-html"
