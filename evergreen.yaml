@@ -39,7 +39,6 @@ variables:
         type: system
         params:
           directory: gopath/src/github.com/evergreen-ci/timber
-      - func: set-up-mongodb
       - func: run-make
         vars: { target: "${task_name}" }
 
@@ -62,27 +61,7 @@ functions:
         USERPROFILE: C:\\Users\\Administrator
         AWS_KEY: ${aws_key}
         AWS_SECRET: ${aws_secret}
-  set-up-mongodb:
-    - command: subprocess.exec
-      type: setup
-      params:
-        working_dir: gopath/src/github.com/evergreen-ci/timber
-        env:
-            MONGODB_URL: ${mongodb_url}
-            DECOMPRESS: ${decompress}
-        command: make get-mongodb
-    - command: subprocess.exec
-      type: setup
-      params:
-        working_dir: gopath/src/github.com/evergreen-ci/timber
-        background: true
-        command: make start-mongod
-    - command: subprocess.exec
-      type: setup
-      params:
-        working_dir: gopath/src/github.com/evergreen-ci/timber
-        command: make check-mongod
-
+ 
 #######################################
 #                Tasks                #
 #######################################
@@ -142,7 +121,6 @@ tasks:
         type: system
         params:
           directory: gopath/src/github.com/evergreen-ci/timber
-      - func: set-up-mongodb
       - func: run-make
         vars:
           target: "coverage-html"
