@@ -366,7 +366,9 @@ func (b *buildlogger) createNewLog(ts time.Time) error {
 }
 
 func (b *buildlogger) timedFlush() {
+	b.mu.Lock()
 	b.timer = time.NewTimer(b.opts.FlushInterval)
+	b.mu.Unlock()
 	defer b.timer.Stop()
 
 	for {
@@ -374,12 +376,14 @@ func (b *buildlogger) timedFlush() {
 		case <-b.ctx.Done():
 			return
 		case <-b.timer.C:
+			b.mu.Lock()
 			if len(b.buffer) > 0 && time.Since(b.lastFlush) >= b.opts.FlushInterval {
 				if err := b.flush(); err != nil {
 					b.opts.Local.Send(message.NewErrorMessage(level.Error, err))
 				}
 			}
 			_ = b.timer.Reset(b.opts.FlushInterval)
+			b.mu.Unlock()
 		}
 	}
 }
