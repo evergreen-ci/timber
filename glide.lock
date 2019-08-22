@@ -5,17 +5,11 @@ imports:
   version: 8b8accd7a3ec9b31a2d3eea610d5bf906bddfd11
 - name: github.com/evergreen-ci/aviation
   version: b5b1a9f93a1d0bd95769b3106971aaeca615a7b2
-- name: github.com/evergreen-ci/poplar
-  version: 05fbb25c36941fae838efece45b3c1979b154ff3
-- name: github.com/evergreen-ci/pail
-  version: 616623bcb3d467bca3590084b4fe17650da89fd2
 
 - name: github.com/pkg/errors
   version: 2b3a18b5f0fb6b4f9190549597d3f962c02bc5eb
 - name: github.com/stretchr/testify
   version: 890a5c3458b43e6104ff5da8dfa139d013d77544
-- name: go.mongodb.org/mongo-driver
-  version: 82905e3077cb5ce7f194748a47b55bf7fff65ccf
 
 # grpc and dependencies
 - name: google.golang.org/grpc
