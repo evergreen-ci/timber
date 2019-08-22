@@ -72,13 +72,6 @@ $(buildDir)/generate-lint:cmd/generate-lint/generate-lint.go
 	$(gobin) build -o $@ $<
 # end generate lint
 
-# benchmark setup targets
-$(buildDir)/run-benchmarks:cmd/benchmarks/run-benchmarks.go
-	@mkdir -p $(buildDir)
-	$(gobin) build -o $@ $<
-# end benchmark setup targets
-
-
 testArgs := -v
 ifneq (,$(RUN_TEST))
 testArgs += -run='$(RUN_TEST)'
@@ -90,8 +83,6 @@ ifneq (,$(SKIP_LONG))
 testArgs += -short
 endif
 
-benchPattern := ./
-
 compile:
 	GOPATH=$(gopath) $(gobin) build $(packages)
 race:
@@ -102,14 +93,10 @@ test:
 	@mkdir -p $(buildDir)
 	GOPATH=$(gopath) $(gobin) test $(testArgs) $(if $(DISABLE_COVERAGE),, -cover) $(packages) | tee $(buildDir)/test.out
 	@grep -s -q -e "^PASS" $(buildDir)/test.out
-.PHONY: benchmark
-benchmark: $(buildDir)/run-benchmarks $(buildDir)/ .FORCE
-	./$(buildDir)/run-benchmarks
 coverage:$(buildDir)/cover.out
 	@go tool cover -func=$< | sed -E 's%github.com/.*/jasper/%%' | column -t
 coverage-html:$(buildDir)/cover.html
 lint:$(foreach target,$(lintPackages),$(buildDir)/output.$(target).lint)
-
 phony += lint lint-deps build build-race race test coverage coverage-html
 .PRECIOUS:$(foreach target,$(lintPackages),$(buildDir)/output.$(target).lint)
 .PRECIOUS:$(buildDir)/output.lint
