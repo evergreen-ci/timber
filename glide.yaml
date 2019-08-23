@@ -10,4 +10,3 @@ import:
   - package: github.com/pkg/errors
   - package: github.com/stretcher/testify
   - package: github.com/evergreen-ci/aviation
-  - package: github.com/evergreen-ci/poplar
