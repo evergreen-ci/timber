@@ -14,5 +14,5 @@ for  more information.
 Documentation
 -------------
 
-See the `godoc <https://godoc.org/github.com/evergreen-ci/cedar/>`_
+See the `godoc <https://godoc.org/github.com/evergreen-ci/timber/>`_
 for complete documentation.
