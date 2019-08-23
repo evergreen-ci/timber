@@ -39,10 +39,9 @@ command: ::
 	// ...
 	l := timber.MakeLogger(ctx, "logging-example", opts)
 
-	l.Send(message.ConvertToComposer(level.Info, "showing and example"))
-	// ...
+	l.Send(message.ConvertToComposer(level.Info, "logging is easy!"))
 	l.Send(message.ConvertToComposer(level.Debug, "another example"))
-	// ...
+        // make sure to close our your logger!
 	err := l.Close()
 
 
