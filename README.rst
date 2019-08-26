@@ -38,6 +38,7 @@ command: ::
 	// populate options struct
 	// ...
 	l := timber.MakeLogger(ctx, "logging-example", opts)
+        grip.SetSender(l)
 
 	l.Send(message.ConvertToComposer(level.Info, "logging is easy!"))
 	l.Send(message.ConvertToComposer(level.Debug, "another example"))
