@@ -21,7 +21,7 @@ Timber enables seamless logging when running tests in
 Features
 --------
 
-When initializing a Sender with Timber, a gRPC connection to a Cedar backed
+When initializing a Sender with timber, a gRPC connection to a Cedar backed
 application is established. Log lines are buffered and sent over in batches to
 Cedar via this gRPC connection. Buffer size, flush intervals, etc. are all
 configurable. The Sender is thread-safe.
