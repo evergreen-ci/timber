@@ -21,7 +21,7 @@ Timber enables seamless logging when running tests in
 Features
 --------
 
-When initializing a Sender with Timber, a gRPC connection to a Cedar backed
+When initializing a Sender with timber, a gRPC connection to a Cedar backed
 application is established. Log lines are buffered and sent over in batches to
 Cedar via this gRPC connection. Buffer size, flush intervals, etc. are all
 configurable. The Sender is thread-safe.
@@ -30,7 +30,7 @@ configurable. The Sender is thread-safe.
 Code Example
 ------------
 
-Using the Timber Sender is straightforward, once the logger is setup it can be
+Using the timber Sender is straightforward, once the logger is setup it can be
 passed around anywhere in your code. Log lines are sent using the Send
 command: ::
 
@@ -44,6 +44,33 @@ command: ::
 	l.Send(message.ConvertToComposer(level.Debug, "another example"))
         // make sure to close our your logger!
 	err := l.Close()
+
+Development
+-----------
+
+The timber project uses a ``makefile`` to coordinate testing.
+
+The makefile provides the following targets:
+
+``build``
+   Compiles non-test code.
+
+``test``
+   Runs all tests, sequentially, for all packages.
+
+``test-<package>``
+   Runs all tests for a specific package.
+
+``race``, ``race-<package>``
+   As with their ``test`` counterpart, these targets run tests with
+   the race detector enabled.
+
+``lint``, ``lint-<package>``
+   Installs and runs the ``gometaliter`` with appropriate settings to
+   lint the project.
+
+File tickets in Jira with the `MAKE <https://jira.mongodb.org/browse/MAKE>`_
+project.
 
 
 Documentation
