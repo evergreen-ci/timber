@@ -9,7 +9,6 @@ import "google/protobuf/timestamp.proto";
 message LogData {
   LogInfo info = 1;
   LogStorage storage = 2;
-  google.protobuf.Timestamp created_at = 3;
 }
 
 message LogInfo{
@@ -23,8 +22,9 @@ message LogInfo{
   int32 trial = 8;
   string proc_name = 9;
   LogFormat format = 10;
-  map<string, string> arguments = 11;
-  bool mainline = 12;
+  repeated string tags = 11;
+  map<string, string> arguments = 12;
+  bool mainline = 13;
 }
 
 enum LogStorage {
@@ -53,7 +53,6 @@ message LogLine {
 message LogEndInfo {
   string log_id = 1;
   int32 exit_code = 2;
-  google.protobuf.Timestamp completed_at = 3;
 }
 
 message BuildloggerResponse {
@@ -64,6 +63,6 @@ message BuildloggerResponse {
 service Buildlogger {
   rpc CreateLog(LogData) returns (BuildloggerResponse);
   rpc AppendLogLines(LogLines) returns (BuildloggerResponse);
-  rpc StreamLog(stream LogLines) returns (BuildloggerResponse);
+  rpc StreamLogLines(stream LogLines) returns (BuildloggerResponse);
   rpc CloseLog(LogEndInfo) returns (BuildloggerResponse);
 }
