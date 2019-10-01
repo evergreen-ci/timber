@@ -91,6 +91,7 @@ type LoggerOptions struct {
 	Trial       int32             `json:"trial" yaml:"trial"`
 	ProcessName string            `json:"proc_name" yaml:"proc_name"`
 	Format      LogFormat         `json:"format" yaml:"format"`
+	Tags        []string          `json:"tags" yaml:"tags"`
 	Arguments   map[string]string `json:"arguments" yaml:"arguments"`
 	Mainline    bool              `json:"mainline" yaml:"mainline"`
 
@@ -168,9 +169,7 @@ func (opts *LoggerOptions) SetExitCode(i int32) { opts.exitCode = i }
 
 // GetLogID returns the unique buildlogger log ID set after NewLogger is
 // called.
-func (opts *LoggerOptions) GetLogID() string {
-	return opts.logID
-}
+func (opts *LoggerOptions) GetLogID() string { return opts.logID }
 
 // NewLogger returns a grip Sender backed by Cedar Buildlogger with level
 // information set.
@@ -189,8 +188,6 @@ func NewLogger(ctx context.Context, name string, l send.LevelInfo, opts *LoggerO
 
 // MakeLogger returns a grip Sender backed by Cedar Buildlogger.
 func MakeLogger(ctx context.Context, name string, opts *LoggerOptions) (send.Sender, error) {
-	ts := time.Now()
-
 	if err := opts.validate(); err != nil {
 		return nil, errors.Wrap(err, "invalid cedar buildlogger options")
 	}
@@ -234,7 +231,7 @@ func MakeLogger(ctx context.Context, name string, opts *LoggerOptions) (send.Sen
 		return nil, errors.Wrap(err, "problem setting default error handler")
 	}
 
-	if err := b.createNewLog(ts); err != nil {
+	if err := b.createNewLog(); err != nil {
 		return nil, err
 	}
 
@@ -303,7 +300,6 @@ func (b *buildlogger) Close() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	ts := time.Now()
 	if b.closed {
 		return nil
 	}
@@ -318,9 +314,8 @@ func (b *buildlogger) Close() error {
 
 	if !catcher.HasErrors() {
 		endInfo := &internal.LogEndInfo{
-			LogId:       b.opts.logID,
-			ExitCode:    b.opts.exitCode,
-			CompletedAt: &timestamp.Timestamp{Seconds: ts.Unix(), Nanos: int32(ts.Nanosecond())},
+			LogId:    b.opts.logID,
+			ExitCode: b.opts.exitCode,
 		}
 		_, err := b.client.CloseLog(b.ctx, endInfo)
 		b.opts.Local.Send(message.NewErrorMessage(level.Error, err))
@@ -336,7 +331,7 @@ func (b *buildlogger) Close() error {
 	return catcher.Resolve()
 }
 
-func (b *buildlogger) createNewLog(ts time.Time) error {
+func (b *buildlogger) createNewLog() error {
 	data := &internal.LogData{
 		Info: &internal.LogInfo{
 			Project:   b.opts.Project,
@@ -349,11 +344,11 @@ func (b *buildlogger) createNewLog(ts time.Time) error {
 			Trial:     b.opts.Trial,
 			ProcName:  b.opts.ProcessName,
 			Format:    internal.LogFormat(b.opts.Format),
+			Tags:      b.opts.Tags,
 			Arguments: b.opts.Arguments,
 			Mainline:  b.opts.Mainline,
 		},
-		Storage:   internal.LogStorage(b.opts.Storage),
-		CreatedAt: &timestamp.Timestamp{Seconds: ts.Unix(), Nanos: int32(ts.Nanosecond())},
+		Storage: internal.LogStorage(b.opts.Storage),
 	}
 	resp, err := b.client.CreateLog(b.ctx, data)
 	if err != nil {

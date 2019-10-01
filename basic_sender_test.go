@@ -49,7 +49,7 @@ func (mc *mockClient) AppendLogLines(_ context.Context, in *internal.LogLines, _
 	return &internal.BuildloggerResponse{LogId: in.LogId}, nil
 }
 
-func (*mockClient) StreamLog(_ context.Context, _ ...grpc.CallOption) (internal.Buildlogger_StreamLogClient, error) {
+func (*mockClient) StreamLogLines(_ context.Context, _ ...grpc.CallOption) (internal.Buildlogger_StreamLogLinesClient, error) {
 	return nil, nil
 }
 
@@ -90,7 +90,7 @@ func (ms *mockService) AppendLogLines(_ context.Context, in *internal.LogLines) 
 	return &internal.BuildloggerResponse{}, nil
 }
 
-func (ms *mockService) StreamLog(_ internal.Buildlogger_StreamLogServer) error { return nil }
+func (ms *mockService) StreamLogLines(_ internal.Buildlogger_StreamLogLinesServer) error { return nil }
 
 func (ms *mockService) CloseLog(_ context.Context, in *internal.LogEndInfo) (*internal.BuildloggerResponse, error) {
 	if ms.closeErr {
@@ -295,10 +295,8 @@ func TestCreateNewLog(t *testing.T) {
 		mc := &mockClient{}
 		ms := &mockSender{Base: send.NewBase("test")}
 		b := createSender(ctx, mc, ms)
-		ts := time.Now()
-		expectedTS := &timestamp.Timestamp{Seconds: ts.Unix(), Nanos: int32(ts.Nanosecond())}
 
-		require.NoError(t, b.createNewLog(ts))
+		require.NoError(t, b.createNewLog())
 		assert.Equal(t, b.opts.Project, mc.logData.Info.Project)
 		assert.Equal(t, b.opts.Version, mc.logData.Info.Version)
 		assert.Equal(t, b.opts.Variant, mc.logData.Info.Variant)
@@ -308,9 +306,9 @@ func TestCreateNewLog(t *testing.T) {
 		assert.Equal(t, b.opts.Trial, mc.logData.Info.Trial)
 		assert.Equal(t, b.opts.ProcessName, mc.logData.Info.ProcName)
 		assert.Equal(t, internal.LogFormat(b.opts.Format), mc.logData.Info.Format)
+		assert.Equal(t, b.opts.Tags, mc.logData.Info.Tags)
 		assert.Equal(t, b.opts.Arguments, mc.logData.Info.Arguments)
 		assert.Equal(t, b.opts.Mainline, mc.logData.Info.Mainline)
-		assert.Equal(t, expectedTS, mc.logData.CreatedAt)
 		assert.Equal(t, internal.LogStorage_LOG_STORAGE_S3, mc.logData.Storage)
 		assert.Equal(t, b.opts.logID, mc.logData.Info.TestName)
 		assert.Empty(t, ms.lastMessage)
@@ -320,7 +318,7 @@ func TestCreateNewLog(t *testing.T) {
 		ms := &mockSender{Base: send.NewBase("test")}
 		b := createSender(ctx, mc, ms)
 
-		assert.Error(t, b.createNewLog(time.Now()))
+		assert.Error(t, b.createNewLog())
 		assert.Equal(t, "create error", ms.lastMessage)
 	})
 }
@@ -545,7 +543,6 @@ func TestClose(t *testing.T) {
 		require.NoError(t, b.Close())
 		assert.Equal(t, b.opts.logID, mc.logEndInfo.LogId)
 		assert.Equal(t, b.opts.exitCode, mc.logEndInfo.ExitCode)
-		assert.Equal(t, time.Now().Unix(), mc.logEndInfo.CompletedAt.Seconds)
 		assert.True(t, b.closed)
 	})
 	t.Run("NonEmptyBuffer", func(t *testing.T) {
@@ -559,7 +556,6 @@ func TestClose(t *testing.T) {
 
 		require.NoError(t, b.Close())
 		assert.NotNil(t, mc.logEndInfo)
-		assert.Equal(t, time.Now().Unix(), mc.logEndInfo.CompletedAt.Seconds)
 		assert.Equal(t, b.opts.logID, mc.logEndInfo.LogId)
 		assert.Equal(t, b.opts.exitCode, mc.logEndInfo.ExitCode)
 		assert.NotNil(t, mc.logLines)
@@ -609,6 +605,7 @@ func createSender(ctx context.Context, mc internal.BuildloggerClient, ms send.Se
 			TestName:    "test_name",
 			Trial:       2,
 			ProcessName: "proc_name",
+			Tags:        []string{"tag1", "tag2", "tag3"},
 			Arguments:   map[string]string{"tag1": "val", "tag2": "val2"},
 			Mainline:    true,
 			Local:       ms,
