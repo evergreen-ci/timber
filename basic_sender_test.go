@@ -201,7 +201,7 @@ func TestNewLogger(t *testing.T) {
 			Local:      &mockSender{Base: send.NewBase("test")},
 		}
 
-		s, err := NewLogger(ctx, name, l, opts)
+		s, err := NewLoggerWithContext(ctx, name, l, opts)
 		require.NoError(t, err)
 		require.NotNil(t, s)
 		assert.Equal(t, name, s.Name())
@@ -210,6 +210,7 @@ func TestNewLogger(t *testing.T) {
 		b, ok := s.(*buildlogger)
 		require.True(t, ok)
 		assert.Equal(t, ctx, b.ctx)
+		assert.Nil(t, b.cancel)
 		assert.NotNil(t, b.buffer)
 		assert.Equal(t, opts, b.opts)
 		assert.Equal(t, defaultMaxBufferSize, b.opts.MaxBufferSize)
@@ -229,7 +230,7 @@ func TestNewLogger(t *testing.T) {
 			RPCAddress: addr,
 		}
 
-		s, err := NewLogger(ctx, name, l, opts)
+		s, err := NewLoggerWithContext(ctx, name, l, opts)
 		require.NoError(t, err)
 		require.NotNil(t, s)
 		assert.Equal(t, name, s.Name())
@@ -238,6 +239,7 @@ func TestNewLogger(t *testing.T) {
 		b, ok := s.(*buildlogger)
 		require.True(t, ok)
 		assert.Equal(t, ctx, b.ctx)
+		assert.Nil(t, b.cancel)
 		assert.NotNil(t, b.buffer)
 		assert.Equal(t, opts, b.opts)
 		assert.Equal(t, defaultMaxBufferSize, b.opts.MaxBufferSize)
@@ -248,6 +250,35 @@ func TestNewLogger(t *testing.T) {
 		b.mu.Unlock()
 		srv.createLog = false
 	})
+	t.Run("WithoutContext", func(t *testing.T) {
+		name := "test"
+		l := send.LevelInfo{Default: level.Debug, Threshold: level.Debug}
+		opts := &LoggerOptions{
+			ClientConn: conn,
+			Local:      &mockSender{Base: send.NewBase("test")},
+		}
+
+		s, err := NewLogger(name, l, opts)
+		require.NoError(t, err)
+		require.NotNil(t, s)
+		assert.Equal(t, name, s.Name())
+		assert.Equal(t, l, s.Level())
+		assert.True(t, srv.createLog)
+		b, ok := s.(*buildlogger)
+		require.True(t, ok)
+		assert.NotNil(t, b.ctx)
+		assert.NotNil(t, b.cancel)
+		assert.NotNil(t, b.buffer)
+		assert.Equal(t, opts, b.opts)
+		assert.Equal(t, defaultMaxBufferSize, b.opts.MaxBufferSize)
+		assert.Equal(t, defaultFlushInterval, b.opts.FlushInterval)
+		time.Sleep(time.Second)
+		b.mu.Lock()
+		assert.NotNil(t, b.timer)
+		b.mu.Unlock()
+		srv.createLog = false
+	})
+
 	t.Run("NegativeFlushInterval", func(t *testing.T) {
 		name := "test"
 		l := send.LevelInfo{Default: level.Debug, Threshold: level.Debug}
@@ -257,7 +288,7 @@ func TestNewLogger(t *testing.T) {
 			FlushInterval: -1,
 		}
 
-		s, err := NewLogger(ctx, name, l, opts)
+		s, err := NewLoggerWithContext(ctx, name, l, opts)
 		require.NoError(t, err)
 		require.NotNil(t, s)
 		b, ok := s.(*buildlogger)
@@ -266,7 +297,7 @@ func TestNewLogger(t *testing.T) {
 		assert.Nil(t, b.timer)
 	})
 	t.Run("InvalidOptions", func(t *testing.T) {
-		s, err := NewLogger(ctx, "test3", send.LevelInfo{}, &LoggerOptions{})
+		s, err := NewLoggerWithContext(ctx, "test3", send.LevelInfo{}, &LoggerOptions{})
 		assert.Error(t, err)
 		assert.Nil(t, s)
 	})
@@ -280,7 +311,7 @@ func TestNewLogger(t *testing.T) {
 		}
 		srv.createErr = true
 
-		s, err := NewLogger(ctx, name, l, opts)
+		s, err := NewLoggerWithContext(ctx, name, l, opts)
 		assert.Error(t, err)
 		assert.Nil(t, s)
 		assert.True(t, strings.Contains(ms.lastMessage, "create error"))
@@ -532,6 +563,17 @@ func TestClose(t *testing.T) {
 		b.closed = false
 		b.conn = &grpc.ClientConn{}
 		assert.Panics(t, func() { _ = b.Close() })
+	})
+	t.Run("CloseWithCancelFunc", func(t *testing.T) {
+		cancelCtx, cancelCancel := context.WithCancel(context.Background())
+		mc := &mockClient{}
+		ms := &mockSender{Base: send.NewBase("test")}
+		b := createSender(cancelCtx, mc, ms)
+		b.cancel = cancelCancel
+
+		assert.NoError(t, b.Close())
+		assert.True(t, b.closed)
+		assert.Equal(t, context.Canceled, cancelCtx.Err())
 	})
 	t.Run("EmptyBuffer", func(t *testing.T) {
 		mc := &mockClient{}

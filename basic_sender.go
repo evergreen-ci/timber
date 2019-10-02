@@ -67,6 +67,7 @@ func (s LogStorage) validate() error {
 type buildlogger struct {
 	mu         sync.Mutex
 	ctx        context.Context
+	cancel     context.CancelFunc
 	opts       *LoggerOptions
 	conn       *grpc.ClientConn
 	client     internal.BuildloggerClient
@@ -103,7 +104,7 @@ type LoggerOptions struct {
 	Local send.Sender `bson:"-" json:"-" yaml:"-"`
 
 	// The number max number of bytes to buffer before sending log data
-	// over rpc to Cedar. Defaults to 10MB.
+	// over rpc to cedar. Defaults to 10MB.
 	MaxBufferSize int `bson:"max_buffer_size" json:"max_buffer_size" yaml:"max_buffer_size"`
 	// The interval at which to flush log lines, regardless of whether the
 	// max buffer size has been reached or not. Setting FlushInterval to a
@@ -171,10 +172,26 @@ func (opts *LoggerOptions) SetExitCode(i int32) { opts.exitCode = i }
 // called.
 func (opts *LoggerOptions) GetLogID() string { return opts.logID }
 
-// NewLogger returns a grip Sender backed by Cedar Buildlogger with level
+// NewLogger returns a grip Sender backed by cedar Buildlogger with level
 // information set.
-func NewLogger(ctx context.Context, name string, l send.LevelInfo, opts *LoggerOptions) (send.Sender, error) {
-	b, err := MakeLogger(ctx, name, opts)
+func NewLogger(name string, l send.LevelInfo, opts *LoggerOptions) (send.Sender, error) {
+	b, err := MakeLogger(name, opts)
+	if err != nil {
+		return nil, errors.Wrap(err, "problem making new logger")
+	}
+
+	if err := b.SetLevel(l); err != nil {
+		return nil, errors.Wrap(err, "problem setting grip level")
+	}
+
+	return b, nil
+
+}
+
+// NewLogger returns a grip Sender backed by cedar Buildlogger with level
+// information set and uses passed in context.
+func NewLoggerWithContext(ctx context.Context, name string, l send.LevelInfo, opts *LoggerOptions) (send.Sender, error) {
+	b, err := MakeLoggerWithContext(ctx, name, opts)
 	if err != nil {
 		return nil, errors.Wrap(err, "problem making new logger")
 	}
@@ -186,8 +203,19 @@ func NewLogger(ctx context.Context, name string, l send.LevelInfo, opts *LoggerO
 	return b, nil
 }
 
-// MakeLogger returns a grip Sender backed by Cedar Buildlogger.
-func MakeLogger(ctx context.Context, name string, opts *LoggerOptions) (send.Sender, error) {
+// MakeLogger returns a grip Sender backed by cedar Buildlogger.
+func MakeLogger(name string, opts *LoggerOptions) (send.Sender, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	return makeLogger(ctx, cancel, name, opts)
+}
+
+// MakeLoggerWithContext returns a grip Sender backed by cedar Buildlogger and
+// uses the passed in context.
+func MakeLoggerWithContext(ctx context.Context, name string, opts *LoggerOptions) (send.Sender, error) {
+	return makeLogger(ctx, nil, name, opts)
+}
+
+func makeLogger(ctx context.Context, cancel context.CancelFunc, name string, opts *LoggerOptions) (send.Sender, error) {
 	if err := opts.validate(); err != nil {
 		return nil, errors.Wrap(err, "invalid cedar buildlogger options")
 	}
@@ -220,6 +248,7 @@ func MakeLogger(ctx context.Context, name string, opts *LoggerOptions) (send.Sen
 
 	b := &buildlogger{
 		ctx:    ctx,
+		cancel: cancel,
 		opts:   opts,
 		conn:   conn,
 		client: internal.NewBuildloggerClient(opts.ClientConn),
@@ -243,7 +272,7 @@ func MakeLogger(ctx context.Context, name string, opts *LoggerOptions) (send.Sen
 }
 
 // Send sends the given message with a timestamp created when the function is
-// called to the Cedar Buildlogger backend. This function buffers the messages
+// called to the cedar Buildlogger backend. This function buffers the messages
 // until the maximum allowed buffer size is reached, at which point the
 // messages in the buffer are sent to the Buildlogger server via RPC. Send is
 // thread safe.
@@ -327,6 +356,10 @@ func (b *buildlogger) Close() error {
 	}
 
 	b.closed = true
+
+	if b.cancel != nil {
+		b.cancel()
+	}
 
 	return catcher.Resolve()
 }
