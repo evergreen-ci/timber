@@ -185,7 +185,6 @@ func NewLogger(name string, l send.LevelInfo, opts *LoggerOptions) (send.Sender,
 	}
 
 	return b, nil
-
 }
 
 // NewLogger returns a grip Sender backed by cedar Buildlogger with level
