@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mongodb/mongo-go-driver/bson"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	yaml "gopkg.in/yaml.v2"
@@ -52,6 +53,7 @@ func TestLoadLoggerOptions(t *testing.T) {
 		name       string
 		fn         string
 		marshaller func(interface{}) ([]byte, error)
+		createFile bool
 		hasErr     bool
 	}{
 		{
@@ -61,14 +63,21 @@ func TestLoadLoggerOptions(t *testing.T) {
 		},
 		{
 			name:   "FileIsDir",
-			fn:     "testdata",
+			fn:     tmpDir,
 			hasErr: true,
 		},
 		{
-			name:   "NoUnmarshaler",
-			fn:     "options.bson",
-			hasErr: true,
+			name:       "NoUnmarshaler",
+			fn:         filepath.Join(tmpDir, "options.csv"),
+			createFile: true,
+			hasErr:     true,
 		},
+		{
+			name:       "MarshalsBSONCorrectly",
+			fn:         filepath.Join(tmpDir, "options.bson"),
+			marshaller: bson.Marshal,
+		},
+
 		{
 			name:       "MarshalsJSONCorrectly",
 			fn:         filepath.Join(tmpDir, "options.json"),
@@ -87,6 +96,11 @@ func TestLoadLoggerOptions(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if test.hasErr {
+				if test.createFile {
+					f, err := os.Create(test.fn)
+					require.NoError(t, err)
+					require.NoError(t, f.Close())
+				}
 				options, err := LoadLoggerOptions(test.fn)
 				assert.Nil(t, options)
 				assert.Error(t, err)

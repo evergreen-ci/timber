@@ -81,51 +81,51 @@ type buildlogger struct {
 // LoggerOptions support the use and creation of a Buildlogger log.
 type LoggerOptions struct {
 	// Unique information to identify the log.
-	Project     string            `json:"project" yaml:"project"`
-	Version     string            `json:"version" yaml:"version"`
-	Variant     string            `json:"variant" yaml:"variant"`
-	TaskName    string            `json:"task_name" yaml:"task_name"`
-	TaskID      string            `json:"task_id" yaml:"task_id"`
-	Execution   int32             `json:"execution" yaml:"execution"`
-	TestName    string            `json:"test_name" yaml:"test_name"`
-	Trial       int32             `json:"trial" yaml:"trial"`
-	ProcessName string            `json:"proc_name" yaml:"proc_name"`
-	Format      LogFormat         `json:"format" yaml:"format"`
-	Tags        []string          `json:"tags" yaml:"tags"`
-	Arguments   map[string]string `json:"arguments" yaml:"arguments"`
-	Mainline    bool              `json:"mainline" yaml:"mainline"`
+	Project     string            `bson:"project" json:"project" yaml:"project"`
+	Version     string            `bson:"version" json:"version" yaml:"version"`
+	Variant     string            `bson:"variant" json:"variant" yaml:"variant"`
+	TaskName    string            `bson:"task_name" json:"task_name" yaml:"task_name"`
+	TaskID      string            `bson:"task_id" json:"task_id" yaml:"task_id"`
+	Execution   int32             `bson:"execution" json:"execution" yaml:"execution"`
+	TestName    string            `bson:"test_name" json:"test_name" yaml:"test_name"`
+	Trial       int32             `bson:"trial" json:"trial" yaml:"trial"`
+	ProcessName string            `bson:"proc_name" json:"proc_name" yaml:"proc_name"`
+	Format      LogFormat         `bson:"format" json:"format" yaml:"format"`
+	Tags        []string          `bson:"tags" json:"tags" yaml:"tags"`
+	Arguments   map[string]string `bson:"args" json:"args" yaml:"args"`
+	Mainline    bool              `bson:"mainline" json:"mainline" yaml:"mainline"`
 
 	// Storage location type for this log.
-	Storage LogStorage `json:"storage" yaml:"storage"`
+	Storage LogStorage `bson:"storage" json:"storage" yaml:"storage"`
 
 	// Configure a local sender for "fallback" operations and to collect
 	// the location of the buildlogger output.
-	Local send.Sender `json:"-" yaml:"-"`
+	Local send.Sender `bson:"-" json:"-" yaml:"-"`
 
 	// The number max number of bytes to buffer before sending log data
 	// over rpc to Cedar. Defaults to 10MB.
-	MaxBufferSize int `json:"max_buffer_size" yaml:"max_buffer_size"`
+	MaxBufferSize int `bson:"max_buffer_size" json:"max_buffer_size" yaml:"max_buffer_size"`
 	// The interval at which to flush log lines, regardless of whether the
 	// max buffer size has been reached or not. Setting FlushInterval to a
 	// duration less than 0 will disable timed flushes. Defaults to 1
 	// minute.
-	FlushInterval time.Duration `json:"flush_interval" yaml:"flush_interval"`
+	FlushInterval time.Duration `bson:"flush_interval" json:"flush_interval" yaml:"flush_interval"`
 
 	// Disable checking for new lines in messages. If this is set to true,
 	// make sure log messages do not contain new lines, otherwise the logs
 	// will be stored incorrectly.
-	DisableNewLineCheck bool `json:"new_line_check_off" yaml:"new_line_check_off"`
+	DisableNewLineCheck bool `bson:"new_line_check_off" json:"new_line_check_off" yaml:"new_line_check_off"`
 
 	// The gRPC client connection. If nil, a new connection will be
 	// established with the gRPC connection configuration.
-	ClientConn *grpc.ClientConn `json:"-" yaml:"-"`
+	ClientConn *grpc.ClientConn `bson:"-" json:"-" yaml:"-"`
 
 	// Configuration for gRPC client connection.
-	RPCAddress string `json:"rpc_address" yaml:"rpc_address"`
-	Insecure   bool   `json:"insecure" yaml:"insecure"`
-	CAFile     string `json:"ca_file" yaml:"ca_file"`
-	CertFile   string `json:"cert_file" yaml:"cert_file"`
-	KeyFile    string `json:"key_file" yaml:"key_file"`
+	RPCAddress string `bson:"rpc_address" json:"rpc_address" yaml:"rpc_address"`
+	Insecure   bool   `bson:"insecure" json:"insecure" yaml:"insecure"`
+	CAFile     string `bson:"ca_file" json:"ca_file" yaml:"ca_file"`
+	CertFile   string `bson:"cert_file" json:"cert_file" yaml:"cert_file"`
+	KeyFile    string `bson:"key_file" json:"key_file" yaml:"key_file"`
 
 	logID    string
 	exitCode int32
