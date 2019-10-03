@@ -175,20 +175,11 @@ func (opts *LoggerOptions) GetLogID() string { return opts.logID }
 // NewLogger returns a grip Sender backed by cedar Buildlogger with level
 // information set.
 func NewLogger(name string, l send.LevelInfo, opts *LoggerOptions) (send.Sender, error) {
-	b, err := MakeLogger(name, opts)
-	if err != nil {
-		return nil, errors.Wrap(err, "problem making new logger")
-	}
-
-	if err := b.SetLevel(l); err != nil {
-		return nil, errors.Wrap(err, "problem setting grip level")
-	}
-
-	return b, nil
+	return NewLoggerWithContext(context.Background(), name, l, opts)
 }
 
-// NewLogger returns a grip Sender backed by cedar Buildlogger with level
-// information set and uses passed in context.
+// NewLoggerWithContext returns a grip Sender backed by cedar Buildlogger with
+// level information set and uses passed in context.
 func NewLoggerWithContext(ctx context.Context, name string, l send.LevelInfo, opts *LoggerOptions) (send.Sender, error) {
 	b, err := MakeLoggerWithContext(ctx, name, opts)
 	if err != nil {
@@ -204,17 +195,13 @@ func NewLoggerWithContext(ctx context.Context, name string, l send.LevelInfo, op
 
 // MakeLogger returns a grip Sender backed by cedar Buildlogger.
 func MakeLogger(name string, opts *LoggerOptions) (send.Sender, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	return makeLogger(ctx, cancel, name, opts)
+	return MakeLoggerWithContext(context.Background(), name, opts)
 }
 
 // MakeLoggerWithContext returns a grip Sender backed by cedar Buildlogger and
 // uses the passed in context.
 func MakeLoggerWithContext(ctx context.Context, name string, opts *LoggerOptions) (send.Sender, error) {
-	return makeLogger(ctx, nil, name, opts)
-}
-
-func makeLogger(ctx context.Context, cancel context.CancelFunc, name string, opts *LoggerOptions) (send.Sender, error) {
+	ctx, cancel := context.WithCancel(ctx)
 	if err := opts.validate(); err != nil {
 		return nil, errors.Wrap(err, "invalid cedar buildlogger options")
 	}
@@ -355,10 +342,7 @@ func (b *buildlogger) Close() error {
 	}
 
 	b.closed = true
-
-	if b.cancel != nil {
-		b.cancel()
-	}
+	b.cancel()
 
 	return catcher.Resolve()
 }
