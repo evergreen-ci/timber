@@ -198,8 +198,8 @@ func MakeLogger(name string, opts *LoggerOptions) (send.Sender, error) {
 	return MakeLoggerWithContext(context.Background(), name, opts)
 }
 
-// MakeLoggerWithContext returns a grip Sender backed by cedar Buildlogger and
-// uses the passed in context.
+// MakeLoggerWithContext returns a grip Sender backed by cedar Buildlogger
+// using the passed in context.
 func MakeLoggerWithContext(ctx context.Context, name string, opts *LoggerOptions) (send.Sender, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	if err := opts.validate(); err != nil {
