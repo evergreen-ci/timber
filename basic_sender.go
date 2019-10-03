@@ -179,7 +179,7 @@ func NewLogger(name string, l send.LevelInfo, opts *LoggerOptions) (send.Sender,
 }
 
 // NewLoggerWithContext returns a grip Sender backed by cedar Buildlogger with
-// level information set and uses passed in context.
+// level information set, using the passed in context.
 func NewLoggerWithContext(ctx context.Context, name string, l send.LevelInfo, opts *LoggerOptions) (send.Sender, error) {
 	b, err := MakeLoggerWithContext(ctx, name, opts)
 	if err != nil {
