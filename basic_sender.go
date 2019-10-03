@@ -201,7 +201,6 @@ func MakeLogger(name string, opts *LoggerOptions) (send.Sender, error) {
 // MakeLoggerWithContext returns a grip Sender backed by cedar Buildlogger
 // using the passed in context.
 func MakeLoggerWithContext(ctx context.Context, name string, opts *LoggerOptions) (send.Sender, error) {
-	ctx, cancel := context.WithCancel(ctx)
 	if err := opts.validate(); err != nil {
 		return nil, errors.Wrap(err, "invalid cedar buildlogger options")
 	}
@@ -234,7 +233,6 @@ func MakeLoggerWithContext(ctx context.Context, name string, opts *LoggerOptions
 
 	b := &buildlogger{
 		ctx:    ctx,
-		cancel: cancel,
 		opts:   opts,
 		conn:   conn,
 		client: internal.NewBuildloggerClient(opts.ClientConn),
@@ -249,6 +247,10 @@ func MakeLoggerWithContext(ctx context.Context, name string, opts *LoggerOptions
 	if err := b.createNewLog(); err != nil {
 		return nil, err
 	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	b.ctx = ctx
+	b.cancel = cancel
 
 	if opts.FlushInterval > 0 {
 		go b.timedFlush()
@@ -314,6 +316,7 @@ func (b *buildlogger) Send(m message.Composer) {
 func (b *buildlogger) Close() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	defer b.cancel()
 
 	if b.closed {
 		return nil
@@ -342,7 +345,6 @@ func (b *buildlogger) Close() error {
 	}
 
 	b.closed = true
-	b.cancel()
 
 	return catcher.Resolve()
 }

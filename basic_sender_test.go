@@ -562,7 +562,8 @@ func TestClose(t *testing.T) {
 	defer cancel()
 
 	t.Run("CloseNonNilConn", func(t *testing.T) {
-		subCtx, _ := context.WithCancel(ctx)
+		subCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
 		mc := &mockClient{}
 		ms := &mockSender{Base: send.NewBase("test")}
 		b := createSender(subCtx, mc, ms)
@@ -573,7 +574,8 @@ func TestClose(t *testing.T) {
 		assert.Panics(t, func() { _ = b.Close() })
 	})
 	t.Run("EmptyBuffer", func(t *testing.T) {
-		subCtx, _ := context.WithCancel(ctx)
+		subCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
 		mc := &mockClient{}
 		ms := &mockSender{Base: send.NewBase("test")}
 		b := createSender(subCtx, mc, ms)
@@ -587,7 +589,8 @@ func TestClose(t *testing.T) {
 		assert.Equal(t, context.Canceled, b.ctx.Err())
 	})
 	t.Run("NonEmptyBuffer", func(t *testing.T) {
-		subCtx, _ := context.WithCancel(ctx)
+		subCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
 		mc := &mockClient{}
 		ms := &mockSender{Base: send.NewBase("test")}
 		b := createSender(subCtx, mc, ms)
@@ -607,12 +610,12 @@ func TestClose(t *testing.T) {
 		assert.Equal(t, context.Canceled, b.ctx.Err())
 	})
 	t.Run("NoopWhenClosed", func(t *testing.T) {
-		subCtx, _ := context.WithCancel(ctx)
+		subCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
 		mc := &mockClient{}
 		ms := &mockSender{Base: send.NewBase("test")}
 		b := createSender(subCtx, mc, ms)
 		b.closed = true
-		b.cancel()
 
 		require.NoError(t, b.Close())
 		assert.Nil(t, mc.logEndInfo)
@@ -620,7 +623,8 @@ func TestClose(t *testing.T) {
 		assert.Equal(t, context.Canceled, b.ctx.Err())
 	})
 	t.Run("RPCErrors", func(t *testing.T) {
-		subCtx, _ := context.WithCancel(ctx)
+		subCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
 		mc := &mockClient{appendErr: true}
 		ms := &mockSender{Base: send.NewBase("test")}
 		b := createSender(subCtx, mc, ms)
