@@ -573,7 +573,7 @@ func TestFlush(t *testing.T) {
 		m := message.ConvertToComposer(level.Info, "overflow")
 		b.Send(m)
 		require.NotEmpty(t, b.buffer)
-		b.Flush(ctx)
+		require.NoError(t, b.Flush(ctx))
 		assert.Empty(t, b.buffer)
 		assert.Zero(t, b.bufferSize)
 		assert.True(t, time.Since(b.lastFlush) <= time.Second)
@@ -591,7 +591,7 @@ func TestFlush(t *testing.T) {
 		b.Send(m)
 		require.NotEmpty(t, b.buffer)
 		b.closed = true
-		b.Flush(ctx)
+		require.NoError(t, b.Flush(ctx))
 		assert.NotEmpty(t, b.buffer)
 		assert.NotZero(t, b.bufferSize)
 		assert.Nil(t, mc.logLines)
