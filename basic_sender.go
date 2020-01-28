@@ -306,6 +306,19 @@ func (b *buildlogger) Send(m message.Composer) {
 	}
 }
 
+// Flush flushes anything messages that may be in the buffer to cedar
+// Buildlogger backend via RPC.
+func (b *buildlogger) Flush(_ context.Context) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if b.closed {
+		return nil
+	}
+
+	return b.flush()
+}
+
 // Close flushes anything that may be left in the underlying buffer and closes
 // out the log with a completed at timestamp and the exit code. If the gRPC
 // client connection was created in NewLogger or MakeLogger, this connection is

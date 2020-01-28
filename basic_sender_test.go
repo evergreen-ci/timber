@@ -112,6 +112,8 @@ func (ms *mockSender) Send(m message.Composer) {
 	}
 }
 
+func (ms *mockSender) Flush(_ context.Context) error { return nil }
+
 func TestLoggerOptionsValidate(t *testing.T) {
 	t.Run("Defaults", func(t *testing.T) {
 		opts := &LoggerOptions{ClientConn: &grpc.ClientConn{}}
@@ -554,6 +556,45 @@ func TestSend(t *testing.T) {
 		assert.Zero(t, b.bufferSize)
 		assert.Nil(t, mc.logLines)
 		assert.Equal(t, "cannot call Send on a closed Buildlogger Sender", ms.lastMessage)
+	})
+}
+
+func TestFlush(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	t.Run("ForceFlush", func(t *testing.T) {
+		mc := &mockClient{}
+		ms := &mockSender{Base: send.NewBase("test")}
+		b := createSender(ctx, mc, ms)
+		b.opts.logID = "id"
+		b.opts.MaxBufferSize = 4096
+
+		m := message.ConvertToComposer(level.Info, "overflow")
+		b.Send(m)
+		require.NotEmpty(t, b.buffer)
+		b.Flush(ctx)
+		assert.Empty(t, b.buffer)
+		assert.Zero(t, b.bufferSize)
+		assert.True(t, time.Since(b.lastFlush) <= time.Second)
+		require.Len(t, mc.logLines.Lines, 1)
+		assert.Equal(t, "overflow", mc.logLines.Lines[0].Data)
+	})
+	t.Run("ClosedSender", func(t *testing.T) {
+		mc := &mockClient{}
+		ms := &mockSender{Base: send.NewBase("test")}
+		b := createSender(ctx, mc, ms)
+		b.opts.logID = "id"
+		b.opts.MaxBufferSize = 4096
+
+		m := message.ConvertToComposer(level.Info, "overflow")
+		b.Send(m)
+		require.NotEmpty(t, b.buffer)
+		b.closed = true
+		b.Flush(ctx)
+		assert.NotEmpty(t, b.buffer)
+		assert.NotZero(t, b.bufferSize)
+		assert.Nil(t, mc.logLines)
 	})
 }
 
