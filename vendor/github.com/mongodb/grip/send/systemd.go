@@ -3,6 +3,7 @@
 package send
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -56,17 +57,19 @@ func MakeSystemdLogger() (Sender, error) {
 func (s *systemdJournal) Send(m message.Composer) {
 	defer func() {
 		if err := recover(); err != nil {
-			s.ErrorHandler(fmt.Errorf("panic: %v", err), m)
+			s.ErrorHandler()(fmt.Errorf("panic: %v", err), m)
 		}
 	}()
 
 	if s.Level().ShouldLog(m) {
 		err := journal.Send(m.String(), s.level.convertPrioritySystemd(m.Priority()), s.options)
 		if err != nil {
-			s.ErrorHandler(err, m)
+			s.ErrorHandler()(err, m)
 		}
 	}
 }
+
+func (s *systemdJournal) Flush(_ context.Context) error { return nil }
 
 func (l LevelInfo) convertPrioritySystemd(p level.Priority) journal.Priority {
 	switch p {
