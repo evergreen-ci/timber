@@ -291,6 +291,7 @@ func (b *buildlogger) Send(m message.Composer) {
 			continue
 		}
 		logLine := &internal.LogLine{
+			Priority:  int32(m.Priority()),
 			Timestamp: &timestamp.Timestamp{Seconds: ts.Unix(), Nanos: int32(ts.Nanosecond())},
 			Data:      strings.TrimRightFunc(line, unicode.IsSpace),
 		}
