@@ -15,7 +15,7 @@ import (
 
 func TestParse(t *testing.T) {
 	t.Run("NoBaseURL", func(t *testing.T) {
-		opts := FetchOptions{
+		opts := GetOptions{
 			BaseURL: "https://cedar.mongodb.com",
 			TaskID:  "task",
 		}
@@ -26,7 +26,7 @@ func TestParse(t *testing.T) {
 		assert.Error(t, err)
 	})
 	t.Run("NoIDAndNoTaskID", func(t *testing.T) {
-		opts := FetchOptions{
+		opts := GetOptions{
 			BaseURL: "https://cedar.mongodb.com",
 			TaskID:  "task",
 		}
@@ -37,7 +37,7 @@ func TestParse(t *testing.T) {
 		assert.Error(t, err)
 	})
 	t.Run("IDAndTaskID", func(t *testing.T) {
-		opts := FetchOptions{
+		opts := GetOptions{
 			BaseURL: "https://cedar.mongodb.com",
 			TaskID:  "task",
 		}
@@ -48,7 +48,7 @@ func TestParse(t *testing.T) {
 		assert.Error(t, err)
 	})
 	t.Run("ID", func(t *testing.T) {
-		opts := FetchOptions{
+		opts := GetOptions{
 			BaseURL: "https://cedar.mongodb.com",
 			ID:      "id",
 		}
@@ -63,7 +63,7 @@ func TestParse(t *testing.T) {
 		assert.Equal(t, fmt.Sprintf("%s/rest/v1/buildlogger/%s/meta%s", opts.BaseURL, opts.ID, getParams(opts)), url)
 	})
 	t.Run("TaskID", func(t *testing.T) {
-		opts := FetchOptions{
+		opts := GetOptions{
 			BaseURL: "https://cedar.mongodb.com",
 			TaskID:  "task",
 		}
@@ -78,7 +78,7 @@ func TestParse(t *testing.T) {
 		assert.Equal(t, fmt.Sprintf("%s/rest/v1/buildlogger/task_id/%s/meta%s", opts.BaseURL, opts.TaskID, getParams(opts)), url)
 	})
 	t.Run("TestName", func(t *testing.T) {
-		opts := FetchOptions{
+		opts := GetOptions{
 			BaseURL:  "https://cedar.mongodb.com",
 			TaskID:   "task",
 			TestName: "test",
@@ -94,7 +94,7 @@ func TestParse(t *testing.T) {
 		assert.Equal(t, fmt.Sprintf("%s/rest/v1/buildlogger/test_name/%s/%s/meta%s", opts.BaseURL, opts.TaskID, opts.TestName, getParams(opts)), url)
 	})
 	t.Run("GroupID", func(t *testing.T) {
-		opts := FetchOptions{
+		opts := GetOptions{
 			BaseURL:  "https://cedar.mongodb.com",
 			TaskID:   "task",
 			TestName: "test",
@@ -111,7 +111,7 @@ func TestParse(t *testing.T) {
 		assert.Equal(t, fmt.Sprintf("%s/rest/v1/buildlogger/test_name/%s/%s/group/%s/meta%s", opts.BaseURL, opts.TaskID, opts.TestName, opts.GroupID, getParams(opts)), url)
 	})
 	t.Run("Parameters", func(t *testing.T) {
-		opts := FetchOptions{
+		opts := GetOptions{
 			BaseURL:       "https://cedar.mongodb.com",
 			TaskID:        "task",
 			Start:         time.Now().Add(-time.Hour),
@@ -220,7 +220,7 @@ func (h *mockHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getParams(opts FetchOptions) string {
+func getParams(opts GetOptions) string {
 	params := fmt.Sprintf(
 		"?execution=%d&proc_name=%s&print_time=%v&print_priority=%v&n=%d&limit=%d&start=%s&end=%s&paginate=true",
 		opts.Execution,

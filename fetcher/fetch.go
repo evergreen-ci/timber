@@ -11,9 +11,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-// FetchOptions specify the required and optional information to create the
-// buildlogger HTTP request to cedar.
-type FetchOptions struct {
+// GetOptions specify the required and optional information to create the
+// buildlogger HTTP GET request to cedar.
+type GetOptions struct {
 	// The cedar service's base HTTP URL for the request.
 	BaseURL string
 	// The user cookie for cedar authorization. Optional.
@@ -37,9 +37,9 @@ type FetchOptions struct {
 	Meta          bool
 }
 
-// Fetch returns a ReadCloser with the logs or log metadata requested via HTTP
+// Logs returns a ReadCloser with the logs or log metadata requested via HTTP
 // to a cedar service.
-func Fetch(opts FetchOptions) (io.ReadCloser, error) {
+func Logs(opts GetOptions) (io.ReadCloser, error) {
 	url, err := opts.parse()
 	if err != nil {
 		return nil, errors.Wrap(err, "problem parsing options")
@@ -59,7 +59,7 @@ func Fetch(opts FetchOptions) (io.ReadCloser, error) {
 	return nil, errors.Wrapf(err, "fetch logs request failed")
 }
 
-func (opts FetchOptions) parse() (string, error) {
+func (opts GetOptions) parse() (string, error) {
 	if opts.BaseURL == "" {
 		return "", errors.New("must provide a base URL")
 	}
