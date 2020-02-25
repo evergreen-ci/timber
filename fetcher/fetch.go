@@ -1,6 +1,7 @@
 package fetcher
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -39,16 +40,17 @@ type GetOptions struct {
 
 // Logs returns a ReadCloser with the logs or log metadata requested via HTTP
 // to a cedar service.
-func Logs(opts GetOptions) (io.ReadCloser, error) {
+func Logs(ctx context.Context, opts GetOptions) (io.ReadCloser, error) {
 	url, err := opts.parse()
 	if err != nil {
 		return nil, errors.Wrap(err, "problem parsing options")
 	}
 
-	resp, err := doReq(url, opts.Cookie)
+	resp, err := doReq(ctx, url, opts.Cookie)
 	if err == nil {
 		if resp.StatusCode == http.StatusOK {
 			return &paginatedReadCloser{
+				ctx:        ctx,
 				header:     resp.Header,
 				cookie:     opts.Cookie,
 				ReadCloser: resp.Body,
@@ -108,6 +110,7 @@ func (opts GetOptions) parse() (string, error) {
 }
 
 type paginatedReadCloser struct {
+	ctx    context.Context
 	header http.Header
 	cookie *http.Cookie
 
@@ -133,7 +136,7 @@ func (r *paginatedReadCloser) Read(p []byte) (int, error) {
 func (r *paginatedReadCloser) getNextPage() error {
 	group, ok := link.ParseHeader(r.header)["next"]
 	if ok {
-		resp, err := doReq(group.URI, r.cookie)
+		resp, err := doReq(r.ctx, group.URI, r.cookie)
 		if err != nil {
 			return errors.Wrap(err, "problem requesting next page")
 		}
@@ -151,7 +154,7 @@ func (r *paginatedReadCloser) getNextPage() error {
 	return nil
 }
 
-func doReq(url string, cookie *http.Cookie) (*http.Response, error) {
+func doReq(ctx context.Context, url string, cookie *http.Cookie) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating http request for cedar buildlogger")
@@ -159,6 +162,7 @@ func doReq(url string, cookie *http.Cookie) (*http.Response, error) {
 	if cookie != nil {
 		req.AddCookie(cookie)
 	}
+	req = req.WithContext(ctx)
 
 	c := utility.GetHTTPClient()
 	defer utility.PutHTTPClient(c)

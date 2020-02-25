@@ -1,6 +1,7 @@
 package fetcher
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -141,11 +142,12 @@ func TestPaginatedReadCloser(t *testing.T) {
 		server := httptest.NewServer(handler)
 		handler.baseURL = server.URL
 
-		resp, err := doReq(server.URL, nil)
+		resp, err := doReq(context.TODO(), server.URL, nil)
 		require.NoError(t, err)
 
 		var r io.ReadCloser
 		r = &paginatedReadCloser{
+			ctx:        context.TODO(),
 			header:     resp.Header,
 			ReadCloser: resp.Body,
 		}
@@ -160,11 +162,12 @@ func TestPaginatedReadCloser(t *testing.T) {
 		server := httptest.NewServer(handler)
 		handler.baseURL = server.URL
 
-		resp, err := doReq(server.URL, nil)
+		resp, err := doReq(context.TODO(), server.URL, nil)
 		require.NoError(t, err)
 
 		var r io.ReadCloser
 		r = &paginatedReadCloser{
+			ctx:        context.TODO(),
 			header:     resp.Header,
 			ReadCloser: resp.Body,
 		}
@@ -179,11 +182,12 @@ func TestPaginatedReadCloser(t *testing.T) {
 		server := httptest.NewServer(handler)
 		handler.baseURL = server.URL
 
-		resp, err := doReq(server.URL, nil)
+		resp, err := doReq(context.TODO(), server.URL, nil)
 		require.NoError(t, err)
 
 		var r io.ReadCloser
 		r = &paginatedReadCloser{
+			ctx:        context.TODO(),
 			header:     resp.Header,
 			ReadCloser: resp.Body,
 		}
