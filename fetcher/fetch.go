@@ -138,7 +138,10 @@ func (r *paginatedReadCloser) getNextPage() error {
 			return errors.Wrap(err, "problem requesting next page")
 		}
 
-		err = errors.Wrap(r.Close(), "problem closing last response reader")
+		if err = errors.Wrap(r.Close(), "problem closing last response reader"); err != nil {
+			return errors.Wrap(r.Close(), "problem closing last response reader")
+		}
+
 		r.header = resp.Header
 		r.ReadCloser = resp.Body
 	} else {
