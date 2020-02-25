@@ -1,4 +1,4 @@
-package util
+package utility
 
 import (
 	"crypto/tls"
@@ -15,6 +15,10 @@ const httpClientTimeout = 5 * time.Minute
 var httpClientPool *sync.Pool
 
 func init() {
+	initHTTPPool()
+}
+
+func initHTTPPool() {
 	httpClientPool = &sync.Pool{
 		New: func() interface{} { return newBaseConfiguredHttpClient() },
 	}
@@ -45,6 +49,9 @@ func newConfiguredBaseTransport() *http.Transport {
 
 }
 
+// GetHTTPClient produces default HTTP client from the pool,
+// constructing a new client if needed. Always pair calls to
+// GetHTTPClient with defered calls to PutHTTPClient.
 func GetHTTPClient() *http.Client { return httpClientPool.Get().(*http.Client) }
 
 func PutHTTPClient(c *http.Client) {
@@ -64,6 +71,10 @@ func PutHTTPClient(c *http.Client) {
 	httpClientPool.Put(c)
 }
 
+// HTTPRetryConfiguration makes it possible to configure the retry
+// semantics for retryable clients. In most cases, construct this
+// object using the NewDefaultHttpRetryConf, which provides reasonable
+// defaults.
 type HTTPRetryConfiguration struct {
 	MaxDelay        time.Duration
 	BaseDelay       time.Duration
@@ -73,6 +84,8 @@ type HTTPRetryConfiguration struct {
 	Statuses        []int
 }
 
+// NewDefaultHTTPRetryConf constructs a HTTPRetryConfiguration object
+// with reasonable defaults.
 func NewDefaultHTTPRetryConf() HTTPRetryConfiguration {
 	return HTTPRetryConfiguration{
 		MaxRetries:      50,
@@ -100,6 +113,10 @@ func NewDefaultHTTPRetryConf() HTTPRetryConfiguration {
 	}
 }
 
+// GetHTTPRetryableClient produces an HTTP client that automatically
+// retries failed requests according to the configured
+// parameters. Couple calls to GetHTTPRetryableClient, with defered
+// calls to PutHTTPClient.
 func GetHTTPRetryableClient(conf HTTPRetryConfiguration) *http.Client {
 	client := GetHTTPClient()
 
@@ -131,6 +148,9 @@ func GetHTTPRetryableClient(conf HTTPRetryConfiguration) *http.Client {
 	return client
 }
 
+// GetDefaultHTTPRetryableClient provides a retryable client with
+// the default settings. Couple calls to GetHTTPRetryableClient, with defered
+// calls to PutHTTPClient.
 func GetDefaultHTTPRetryableClient() *http.Client {
 	return GetHTTPRetryableClient(NewDefaultHTTPRetryConf())
 }
