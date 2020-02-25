@@ -6,7 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/evergreen-ci/timber/util"
+	"github.com/evergreen-ci/utility"
+	"github.com/peterhellberg/link"
 	"github.com/pkg/errors"
 )
 
@@ -44,21 +45,14 @@ func Fetch(opts FetchOptions) (io.ReadCloser, error) {
 		return nil, errors.Wrap(err, "problem parsing options")
 	}
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "error creating http request for cedar buildlogger")
-	}
-	if opts.Cookie != nil {
-		req.AddCookie(opts.Cookie)
-	}
-
-	c := util.GetHTTPClient()
-	defer util.PutHTTPClient(c)
-
-	resp, err := c.Do(req)
+	resp, err := doReq(url, opts.Cookie)
 	if err == nil {
 		if resp.StatusCode == http.StatusOK {
-			return resp.Body, nil
+			return &paginatedReadCloser{
+				header:     resp.Header,
+				cookie:     opts.Cookie,
+				ReadCloser: resp.Body,
+			}, nil
 		}
 		return nil, errors.Errorf("failed to fetch logs with resp '%s'", resp.Status)
 	}
@@ -77,7 +71,7 @@ func (opts FetchOptions) parse() (string, error) {
 	}
 
 	params := fmt.Sprintf(
-		"?execution=%d&proc_name=%s&print_time=%v&print_priority=%v&n=%d&limit=%d&start=%s&end=%s",
+		"?execution=%d&proc_name=%s&print_time=%v&print_priority=%v&n=%d&limit=%d&start=%s&end=%s&paginate=true",
 		opts.Execution,
 		opts.ProcessName,
 		opts.PrintTime,
@@ -111,4 +105,60 @@ func (opts FetchOptions) parse() (string, error) {
 	url += params
 
 	return url, nil
+}
+
+type paginatedReadCloser struct {
+	header http.Header
+	cookie *http.Cookie
+
+	io.ReadCloser
+}
+
+func (r *paginatedReadCloser) Read(p []byte) (int, error) {
+	if r.ReadCloser == nil {
+		return 0, io.EOF
+	}
+
+	var m int
+	n, err := r.ReadCloser.Read(p)
+	if err == io.EOF && n > 0 {
+		if err = r.getNextPage(); err == nil && n < len(p) {
+			m, err = r.ReadCloser.Read(p[n:])
+		}
+	}
+
+	return n + m, err
+}
+
+func (r *paginatedReadCloser) getNextPage() error {
+	group, ok := link.ParseHeader(r.header)["next"]
+	if ok {
+		resp, err := doReq(group.URI, r.cookie)
+		if err != nil {
+			return errors.Wrap(err, "problem requesting next page")
+		}
+
+		err = errors.Wrap(r.Close(), "problem closing last response reader")
+		r.header = resp.Header
+		r.ReadCloser = resp.Body
+	} else {
+		return io.EOF
+	}
+
+	return nil
+}
+
+func doReq(url string, cookie *http.Cookie) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "error creating http request for cedar buildlogger")
+	}
+	if cookie != nil {
+		req.AddCookie(cookie)
+	}
+
+	c := utility.GetHTTPClient()
+	defer utility.PutHTTPClient(c)
+
+	return c.Do(req)
 }

@@ -2,6 +2,10 @@ package fetcher
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -131,9 +135,94 @@ func TestParse(t *testing.T) {
 	})
 }
 
+func TestPaginatedReadCloser(t *testing.T) {
+	t.Run("PaginatedRoute", func(t *testing.T) {
+		handler := &mockHandler{paginate: true}
+		server := httptest.NewServer(handler)
+		handler.baseURL = server.URL
+
+		resp, err := doReq(server.URL, nil)
+		require.NoError(t, err)
+
+		var r io.ReadCloser
+		r = &paginatedReadCloser{
+			header:     resp.Header,
+			ReadCloser: resp.Body,
+		}
+
+		data, err := ioutil.ReadAll(r)
+		require.NoError(t, err)
+		assert.Equal(t, "PAGINATED BODY PAGE 1\nPAGINATED BODY PAGE 2\n", string(data))
+		assert.NoError(t, r.Close())
+	})
+	t.Run("NonPaginatedRoute", func(t *testing.T) {
+		handler := &mockHandler{}
+		server := httptest.NewServer(handler)
+		handler.baseURL = server.URL
+
+		resp, err := doReq(server.URL, nil)
+		require.NoError(t, err)
+
+		var r io.ReadCloser
+		r = &paginatedReadCloser{
+			header:     resp.Header,
+			ReadCloser: resp.Body,
+		}
+
+		data, err := ioutil.ReadAll(r)
+		require.NoError(t, err)
+		assert.Equal(t, "NON-PAGINATED BODY PAGE", string(data))
+		assert.NoError(t, r.Close())
+	})
+	t.Run("SplitPageByteSlice", func(t *testing.T) {
+		handler := &mockHandler{paginate: true}
+		server := httptest.NewServer(handler)
+		handler.baseURL = server.URL
+
+		resp, err := doReq(server.URL, nil)
+		require.NoError(t, err)
+
+		var r io.ReadCloser
+		r = &paginatedReadCloser{
+			header:     resp.Header,
+			ReadCloser: resp.Body,
+		}
+
+		p := make([]byte, 33) // 1.5X len of each page
+		n, err := r.Read(p)
+		require.NoError(t, err)
+		assert.Equal(t, len(p), n)
+		assert.Equal(t, "PAGINATED BODY PAGE 1\nPAGINATED B", string(p))
+		p = make([]byte, 33)
+		n, err = r.Read(p)
+		require.Equal(t, io.EOF, err)
+		assert.Equal(t, 11, n)
+		assert.Equal(t, "ODY PAGE 2\n", string(p[:11]))
+		assert.NoError(t, r.Close())
+	})
+}
+
+type mockHandler struct {
+	baseURL  string
+	count    int
+	paginate bool
+}
+
+func (h *mockHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if h.paginate {
+		w.Header().Set("Link", fmt.Sprintf("<%s>; rel=\"%s\"", h.baseURL, "next"))
+		if h.count <= 1 {
+			_, _ = w.Write([]byte(fmt.Sprintf("PAGINATED BODY PAGE %d\n", h.count+1)))
+		}
+		h.count++
+	} else {
+		_, _ = w.Write([]byte("NON-PAGINATED BODY PAGE"))
+	}
+}
+
 func getParams(opts FetchOptions) string {
 	params := fmt.Sprintf(
-		"?execution=%d&proc_name=%s&print_time=%v&print_priority=%v&n=%d&limit=%d&start=%s&end=%s",
+		"?execution=%d&proc_name=%s&print_time=%v&print_priority=%v&n=%d&limit=%d&start=%s&end=%s&paginate=true",
 		opts.Execution,
 		opts.ProcessName,
 		opts.PrintTime,
