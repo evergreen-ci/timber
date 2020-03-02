@@ -19,6 +19,11 @@ type GetOptions struct {
 	BaseURL string
 	// The user cookie for cedar authorization. Optional.
 	Cookie *http.Cookie
+	// User API key and name for request header.
+	HeaderKeyName  string
+	UserKey        string
+	HeaderUserName string
+	UserName       string
 	// Request information. See cedar's REST documentation for more
 	// information:
 	// `https://github.com/evergreen-ci/cedar/wiki/Rest-V1-Usage`.
@@ -46,13 +51,13 @@ func Logs(ctx context.Context, opts GetOptions) (io.ReadCloser, error) {
 		return nil, errors.Wrap(err, "problem parsing options")
 	}
 
-	resp, err := doReq(ctx, url, opts.Cookie)
+	resp, err := doReq(ctx, url, opts)
 	if err == nil {
 		if resp.StatusCode == http.StatusOK {
 			return &paginatedReadCloser{
 				ctx:        ctx,
 				header:     resp.Header,
-				cookie:     opts.Cookie,
+				opts:       opts,
 				ReadCloser: resp.Body,
 			}, nil
 		}
@@ -112,7 +117,7 @@ func (opts GetOptions) parse() (string, error) {
 type paginatedReadCloser struct {
 	ctx    context.Context
 	header http.Header
-	cookie *http.Cookie
+	opts   GetOptions
 
 	io.ReadCloser
 }
@@ -136,7 +141,7 @@ func (r *paginatedReadCloser) Read(p []byte) (int, error) {
 func (r *paginatedReadCloser) getNextPage() error {
 	group, ok := link.ParseHeader(r.header)["next"]
 	if ok {
-		resp, err := doReq(r.ctx, group.URI, r.cookie)
+		resp, err := doReq(r.ctx, group.URI, r.opts)
 		if err != nil {
 			return errors.Wrap(err, "problem requesting next page")
 		}
@@ -154,13 +159,17 @@ func (r *paginatedReadCloser) getNextPage() error {
 	return nil
 }
 
-func doReq(ctx context.Context, url string, cookie *http.Cookie) (*http.Response, error) {
+func doReq(ctx context.Context, url string, opts GetOptions) (*http.Response, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating http request for cedar buildlogger")
 	}
-	if cookie != nil {
-		req.AddCookie(cookie)
+	if opts.Cookie != nil {
+		req.AddCookie(opts.Cookie)
+	}
+	if opts.HeaderKeyName != "" && opts.UserKey != "" && opts.HeaderUserName != "" && opts.UserName != "" {
+		req.Header.Set(opts.HeaderKeyName, opts.UserKey)
+		req.Header.Set(opts.HeaderUserName, opts.UserName)
 	}
 	req = req.WithContext(ctx)
 
