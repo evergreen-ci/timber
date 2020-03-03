@@ -20,10 +20,8 @@ type GetOptions struct {
 	// The user cookie for cedar authorization. Optional.
 	Cookie *http.Cookie
 	// User API key and name for request header.
-	HeaderKeyName  string
-	UserKey        string
-	HeaderUserName string
-	UserName       string
+	UserKey  string
+	UserName string
 	// Request information. See cedar's REST documentation for more
 	// information:
 	// `https://github.com/evergreen-ci/cedar/wiki/Rest-V1-Usage`.
@@ -78,16 +76,20 @@ func (opts GetOptions) parse() (string, error) {
 	}
 
 	params := fmt.Sprintf(
-		"?execution=%d&proc_name=%s&print_time=%v&print_priority=%v&n=%d&limit=%d&start=%s&end=%s&paginate=true",
+		"?execution=%d&proc_name=%s&print_time=%v&print_priority=%v&n=%d&limit=%d&paginate=true",
 		opts.Execution,
 		opts.ProcessName,
 		opts.PrintTime,
 		opts.PrintPriority,
 		opts.Tail,
 		opts.Limit,
-		opts.Start.Format(time.RFC3339),
-		opts.End.Format(time.RFC3339),
 	)
+	if !opts.Start.IsZero() {
+		params += fmt.Sprintf("&start=%s", opts.Start.Format(time.RFC3339))
+	}
+	if !opts.End.IsZero() {
+		params += fmt.Sprintf("&end=%s", opts.End.Format(time.RFC3339))
+	}
 	for _, tag := range opts.Tags {
 		params += fmt.Sprintf("&tags=%s", tag)
 	}
@@ -167,9 +169,9 @@ func doReq(ctx context.Context, url string, opts GetOptions) (*http.Response, er
 	if opts.Cookie != nil {
 		req.AddCookie(opts.Cookie)
 	}
-	if opts.HeaderKeyName != "" && opts.UserKey != "" && opts.HeaderUserName != "" && opts.UserName != "" {
-		req.Header.Set(opts.HeaderKeyName, opts.UserKey)
-		req.Header.Set(opts.HeaderUserName, opts.UserName)
+	if opts.UserKey != "" && opts.UserName != "" {
+		req.Header.Set("Evergreen-Api-Key", opts.UserKey)
+		req.Header.Set("Evergreen-Api-User", opts.UserName)
 	}
 	req = req.WithContext(ctx)
 
