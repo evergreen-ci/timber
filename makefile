@@ -84,6 +84,7 @@ proto:vendor/cedar.proto
 clean:
 	rm -rf internal/*.pb.go
 	rm -f vendor/cedar.proto
+	rm -rf $(lintDeps)
 
 vendor/cedar.proto:
 	curl -L https://raw.githubusercontent.com/evergreen-ci/cedar/master/buildlogger.proto -o $@
