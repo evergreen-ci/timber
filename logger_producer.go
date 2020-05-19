@@ -1,8 +1,6 @@
 package timber
 
 import (
-	"context"
-
 	"github.com/mongodb/grip/level"
 	"github.com/mongodb/grip/send"
 	"github.com/pkg/errors"
@@ -11,10 +9,9 @@ import (
 // JasperLoggerOptions wraps LoggerOptions and implements a jasper
 // options.LoggerProducer for BuildloggerV3.
 type JasperLoggerOptions struct {
-	Ctx           context.Context `json:"-" bson:"-"`
-	Name          string          `json:"name" bson:"name"`
-	Level         send.LevelInfo  `json:"level" bson:"level"`
-	BuildloggerV3 LoggerOptions   `json:"buildloggerv3" bson:"buildloggerv3"`
+	Name          string         `json:"name" bson:"name"`
+	Level         send.LevelInfo `json:"level" bson:"level"`
+	BuildloggerV3 LoggerOptions  `json:"buildloggerv3" bson:"buildloggerv3"`
 }
 
 // NewBuildloggerV3LoggerProducer returns a jasper options.LoggerProducer
@@ -22,9 +19,6 @@ type JasperLoggerOptions struct {
 func NewBuildloggerV3LoggerProducer() *JasperLoggerOptions { return &JasperLoggerOptions{} }
 
 func (opts *JasperLoggerOptions) validate() error {
-	if opts.Ctx == nil {
-		opts.Ctx = context.Background()
-	}
 	if opts.Name == "" {
 		opts.Name = "jasper"
 	}
@@ -42,5 +36,5 @@ func (opts *JasperLoggerOptions) Configure() (send.Sender, error) {
 		return nil, errors.Wrap(err, "invalid config")
 	}
 
-	return NewLoggerWithContext(opts.Ctx, opts.Name, opts.Level, &opts.BuildloggerV3)
+	return NewLogger(opts.Name, opts.Level, &opts.BuildloggerV3)
 }
