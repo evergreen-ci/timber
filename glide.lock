@@ -5,7 +5,7 @@ imports:
   version: 7b77abce30e2f707b37c8321f192e5a83c597e7f
   # kim: TODO: revendor aviation once EVG-9694 is merged
 - name: github.com/evergreen-ci/aviation
-  version: 8ec393383cf7dd8a496c891c493b13749efa57d5
+  version: e576e1538fbf9207f2abb3ded217d5b633f5e379
 - name: go.mongodb.org/mongo-driver
   version: 305bc4a5e4131420fe8ba5628e6faa9e6ade4e86
 - name: github.com/evergreen-ci/utility

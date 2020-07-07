@@ -46,7 +46,7 @@ func (opts *DialCedarOptions) validate() error {
 type userCredentials struct {
 	Username string `json:"username"`
 	Password string `json:"password,omitempty"`
-	APIKey   string `json:"api_key,omitempty"`
+	apiKey   string
 }
 
 const (
@@ -66,7 +66,7 @@ func DialCedar(ctx context.Context, client *http.Client, opts *DialCedarOptions)
 	creds := &userCredentials{
 		Username: opts.Username,
 		Password: opts.Password,
-		APIKey:   opts.APIKey,
+		apiKey:   opts.APIKey,
 	}
 
 	ca, err := makeCedarCertRequest(ctx, client, http.MethodGet, httpAddress+"/rest/v1/admin/ca", nil)
@@ -109,9 +109,9 @@ func makeCedarCertRequest(ctx context.Context, client *http.Client, method, url 
 	}
 	req = req.WithContext(ctx)
 
-	if creds != nil && creds.Username != "" && creds.APIKey != "" {
+	if creds != nil && creds.Username != "" && creds.apiKey != "" {
 		req.Header.Set(APIUserHeader, creds.Username)
-		req.Header.Set(APIKeyHeader, creds.APIKey)
+		req.Header.Set(APIKeyHeader, creds.apiKey)
 	}
 
 	resp, err := client.Do(req)
