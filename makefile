@@ -1,7 +1,7 @@
 buildDir := build
 
-packages := ./ ./internal ./fetcher
-lintPackages := timber fetcher
+packages := ./ ./internal ./buildlogger ./buildlogger/fetcher
+lintPackages := timber buildlogger buildlogger-fetcher
 # override the go binary path if set
 ifneq ($(GO_BIN_PATH),)
 gobin := $(GO_BIN_PATH)
