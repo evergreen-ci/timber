@@ -74,17 +74,17 @@ $(buildDir)/output.lint:$(buildDir)/run-linter $(buildDir)/ .FORCE
 .FORCE:
 
 
-proto:vendor/cedar.proto
+proto-buildlogger:vendor/cedar.proto
 	@mkdir -p internal
-	protoc --go_out=plugins=grpc:internal vendor/cedar.proto
-	mv internal/vendor/cedar.pb.go internal/cedar.pb.go
+	protoc --go_out=plugins=grpc:internal vendor/buildlogger.proto
+	mv internal/vendor/buildlogger.pb.go internal/buildlogger.pb.go
 	rm -rf internal/vendor
 clean:
 	rm -rf internal/*.pb.go
 	rm -f vendor/cedar.proto
 	rm -rf $(lintDeps)
 
-vendor/cedar.proto:
+vendor/buildlogger.proto:
 	curl -L https://raw.githubusercontent.com/evergreen-ci/cedar/master/buildlogger.proto -o $@
 vendor:
 	glide install -s
