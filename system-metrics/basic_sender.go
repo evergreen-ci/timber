@@ -8,7 +8,6 @@ import (
 	"github.com/evergreen-ci/timber"
 	"github.com/evergreen-ci/timber/internal"
 	"github.com/mongodb/grip"
-	"github.com/mongodb/grip/send"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
@@ -16,27 +15,6 @@ import (
 const (
 	defaultMaxBufferSize int = 1e7
 )
-
-// DataFormat describes the format of the system metrics data.
-type DataFormat int32
-
-// Valid DataFormat values.
-const (
-	DataFormatText DataFormat = 0
-	DataFormatFTDC DataFormat = 1
-	DataFormatBSON DataFormat = 2
-	DataFormatJSON DataFormat = 3
-	DataFormatCSV  DataFormat = 4
-)
-
-func (f DataFormat) validate() error {
-	switch f {
-	case DataFormatText, DataFormatFTDC, DataFormatBSON, DataFormatJSON, DataFormatCSV:
-		return nil
-	default:
-		return errors.New("invalid data format specified")
-	}
-}
 
 // CompressionType describes how the system metrics data is compressed.
 type CompressionType int32
@@ -89,7 +67,6 @@ type metricslogger struct {
 	buffer     []byte
 	bufferSize int
 	closed     bool
-	*send.Base
 }
 
 // SystemMetricsOptions support the use and creation of a system metrics object.
@@ -104,7 +81,6 @@ type SystemMetricsOptions struct {
 	Mainline  bool   `bson:"mainline" json:"mainline" yaml:"mainline"`
 
 	// Data storage information for this object
-	Format      DataFormat      `bson:"format" json:"format" yaml:"format"`
 	Compression CompressionType `bson:"compression" json:"compression" yaml:"compression"`
 	Schema      SchemaType      `bson:"schema" json:"schema" yaml:"schema"`
 
@@ -125,9 +101,6 @@ type SystemMetricsOptions struct {
 }
 
 func (opts *SystemMetricsOptions) validate() error {
-	if err := opts.Format.validate(); err != nil {
-		return err
-	}
 	if err := opts.Compression.validate(); err != nil {
 		return err
 	}
@@ -151,12 +124,8 @@ func (opts *SystemMetricsOptions) validate() error {
 	return nil
 }
 
-// GetSystemMetricsID returns the unique metricslogger log ID set after NewMetricsLogger is
-// called.
-func (opts *SystemMetricsOptions) GetSystemMetricsID() string { return opts.systemMetricsID }
-
-// MakeLoggerWithContext returns system metrics logger backed by cedar using
-// the passed in context.
+// CreateSystemMetrics creates a system metrics metadata object in cedar with
+// the provided options, along with setting the created_at timestamp.
 func CreateSystemMetrics(name string, opts *SystemMetricsOptions) (*metricslogger, error) {
 	ctx := context.Background()
 	if err := opts.validate(); err != nil {
@@ -184,7 +153,6 @@ func CreateSystemMetrics(name string, opts *SystemMetricsOptions) (*metricslogge
 		conn:   conn,
 		client: internal.NewCedarSystemMetricsClient(opts.ClientConn),
 		buffer: []byte{},
-		Base:   send.NewBase(name),
 	}
 
 	if err := m.createNewSystemMetrics(); err != nil {
@@ -198,9 +166,10 @@ func CreateSystemMetrics(name string, opts *SystemMetricsOptions) (*metricslogge
 	return m, nil
 }
 
-// Send sends the given byte slice to the cedar backend. This function buffers the data
-// until the maximum allowed buffer size is reached, at which point the data
-// in the buffer is sent to the cedar server via RPC. Send is thread safe.
+// AddSystemMetricsData sends the given byte slice to the cedar backend. This
+// function buffers the data until the maximum allowed buffer size is reached,
+// at which point the data in the buffer is sent to the cedar server via RPC.
+// Send is thread safe.
 func (m *metricslogger) AddSystemMetricsData(data []byte) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -225,37 +194,15 @@ func (m *metricslogger) AddSystemMetricsData(data []byte) error {
 		m.bufferSize += len(data)
 	}
 
-	m.buffer = append(m.buffer, data...)
-	m.bufferSize += len(data)
-	if m.bufferSize > m.opts.MaxBufferSize {
-		if err := m.flush(m.ctx); err != nil {
-			return errors.Wrap(err, "problem flushing buffer")
-		}
-	}
-
 	return nil
-}
-
-// Flush flushes anything messages that may be in the buffer to cedar
-// Buildlogger backend via RPC.
-func (m *metricslogger) Flush(ctx context.Context) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.closed {
-		return nil
-	}
-
-	return m.flush(ctx)
 }
 
 // Close flushes anything that may be left in the underlying buffer and closes
 // out the system metrics object with a completed at timestamp. If the gRPC
-// client connection was created in NewMetricsLogger or MakeMetricsLogger,
-// this connection is also closed. Close is thread safe but should only be called
-// once no morecalls to Send are needed; after Close has been called any subsequent
-// calls to Send will error. After the first call to Close subsequent calls will
-// no-op.
+// client connection was created in CreateSystemMetrics, this connection is also
+// closed. Close is thread safe but should only be called once no more calls
+// to Send are needed; after Close has been called any subsequent calls to Send
+// will error. After the first call to Close subsequent calls will no-op.
 func (m *metricslogger) CloseSystemMetrics() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -301,7 +248,6 @@ func (m *metricslogger) createNewSystemMetrics() error {
 			Mainline:  m.opts.Mainline,
 		},
 		Artifact: &internal.SystemMetricsArtifactInfo{
-			Format:      internal.DataFormat(m.opts.Format),
 			Compression: internal.CompressionType(m.opts.Compression),
 			Schema:      internal.SchemaType(m.opts.Schema),
 		},
