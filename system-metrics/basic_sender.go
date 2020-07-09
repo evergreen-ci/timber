@@ -155,14 +155,10 @@ func (opts *SystemMetricsOptions) validate() error {
 // called.
 func (opts *SystemMetricsOptions) GetSystemMetricsID() string { return opts.systemMetricsID }
 
-// MakeLogger returns system metrics logger backed by cedar.
-func MakeMetricsLogger(name string, opts *SystemMetricsOptions) (*metricslogger, error) {
-	return MakeMetricsLoggerWithContext(context.Background(), name, opts)
-}
-
 // MakeLoggerWithContext returns system metrics logger backed by cedar using
 // the passed in context.
-func MakeMetricsLoggerWithContext(ctx context.Context, name string, opts *SystemMetricsOptions) (*metricslogger, error) {
+func CreateSystemMetrics(name string, opts *SystemMetricsOptions) (*metricslogger, error) {
+	ctx := context.Background()
 	if err := opts.validate(); err != nil {
 		return nil, errors.Wrap(err, "invalid cedar metricslogger options")
 	}
@@ -205,7 +201,7 @@ func MakeMetricsLoggerWithContext(ctx context.Context, name string, opts *System
 // Send sends the given byte slice to the cedar backend. This function buffers the data
 // until the maximum allowed buffer size is reached, at which point the data
 // in the buffer is sent to the cedar server via RPC. Send is thread safe.
-func (m *metricslogger) Send(data []byte) error {
+func (m *metricslogger) AddSystemMetricsData(data []byte) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -260,7 +256,7 @@ func (m *metricslogger) Flush(ctx context.Context) error {
 // once no morecalls to Send are needed; after Close has been called any subsequent
 // calls to Send will error. After the first call to Close subsequent calls will
 // no-op.
-func (m *metricslogger) Close() error {
+func (m *metricslogger) CloseSystemMetrics() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	defer m.cancel()
