@@ -20,7 +20,6 @@ message SystemMetricsInfo {
   string task_id = 5;
   int32 execution = 6;
   bool mainline = 7;
-  google.protobuf.Timestamp created_at = 8;
 }
 
 message SystemMetricsArtifactInfo {
@@ -36,7 +35,6 @@ message SystemMetricsData {
 
 message SystemMetricsSeriesEnd {
   string id = 1;
-  google.protobuf.Timestamp completed_at = 3;
 }
 
 message SystemMetricsResponse {
