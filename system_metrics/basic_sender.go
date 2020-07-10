@@ -62,6 +62,10 @@ type ConnectionOptions struct {
 	Client   http.Client
 }
 
+// NewSystemMetricsClient returns a grpc client to send system metrics data to
+// cedar. If authentication credentials (username and apikey) are not specified,
+// then an insecure connection will be established with the specified address
+// and port.
 func NewSystemMetricsClient(ctx context.Context, opts ConnectionOptions) (*SystemMetricsClient, error) {
 	var conn *grpc.ClientConn
 	var err error
@@ -86,6 +90,8 @@ func NewSystemMetricsClient(ctx context.Context, opts ConnectionOptions) (*Syste
 	return s, nil
 }
 
+// NewSystemMetricsClientWithExistingConnection returns a grpc client to send
+// system metrics data to cedar, using the provided client connection.
 func NewSystemMetricsClientWithExistingConnection(ctx context.Context, clientConn *grpc.ClientConn) (*SystemMetricsClient, error) {
 	if clientConn == nil {
 		return nil, errors.New("Must provide existing client connection")
@@ -169,7 +175,7 @@ func (s *SystemMetricsClient) CloseSystemMetrics(ctx context.Context, id string)
 }
 
 // CloseClient closes out the client connection if one was created by
-// NewSystemMetricsClient.
+// NewSystemMetricsClient. A provided client connection will not be closed.
 func (s *SystemMetricsClient) CloseClient() error {
 	if s.clientConn == nil {
 		return nil
