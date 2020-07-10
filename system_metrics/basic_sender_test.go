@@ -105,13 +105,13 @@ func TestNewSystemMetricsClient(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	srv := &mockServer{}
-	require.NoError(t, startRPCService(ctx, srv, 4000))
+	require.NoError(t, startRPCService(ctx, srv, 5000))
 	t.Run("ValidOptions", func(t *testing.T) {
 		connOpts := ConnectionOptions{
 			Client: http.Client{},
 			DialOpts: timber.DialCedarOptions{
-				BaseAddress: "0.0.0.0",
-				RPCPort:     "4000",
+				BaseAddress: "localhost",
+				RPCPort:     "5000",
 			},
 		}
 		client, err := NewSystemMetricsClient(ctx, connOpts)
@@ -132,8 +132,8 @@ func TestNewSystemMetricsClientWithExistingClient(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	srv := &mockServer{}
-	require.NoError(t, startRPCService(ctx, srv, 4000))
-	addr := fmt.Sprintf("localhost:%d", 4000)
+	require.NoError(t, startRPCService(ctx, srv, 6000))
+	addr := fmt.Sprintf("localhost:%d", 6000)
 	conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure())
 	require.NoError(t, err)
 
@@ -155,13 +155,13 @@ func TestCloseClient(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	srv := &mockServer{}
-	require.NoError(t, startRPCService(ctx, srv, 4000))
+	require.NoError(t, startRPCService(ctx, srv, 7000))
 	t.Run("WithClientConn", func(t *testing.T) {
 		connOpts := ConnectionOptions{
 			Client: http.Client{},
 			DialOpts: timber.DialCedarOptions{
-				BaseAddress: "0.0.0.0",
-				RPCPort:     "4000",
+				BaseAddress: "localhost",
+				RPCPort:     "7000",
 			},
 		}
 		client, err := NewSystemMetricsClient(ctx, connOpts)
@@ -174,7 +174,7 @@ func TestCloseClient(t *testing.T) {
 		require.Error(t, client.CloseSystemMetrics(ctx, "ID"))
 	})
 	t.Run("WithoutClientConn", func(t *testing.T) {
-		addr := fmt.Sprintf("localhost:%d", 4000)
+		addr := fmt.Sprintf("localhost:%d", 7000)
 		conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure())
 		require.NoError(t, err)
 		client, err := NewSystemMetricsClientWithExistingConnection(ctx, conn)
