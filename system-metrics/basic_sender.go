@@ -51,7 +51,7 @@ func (f SchemaType) validate() error {
 	}
 }
 
-type systemMetricsClient struct {
+type SystemMetricsClient struct {
 	cancel context.CancelFunc
 	client internal.CedarSystemMetricsClient
 }
@@ -62,31 +62,42 @@ type ConnectionOptions struct {
 	Client   http.Client
 }
 
-func NewSystemMetricsClient(ctx context.Context, clientConn *grpc.ClientConn, opts ConnectionOptions) (*systemMetricsClient, error) {
+func NewSystemMetricsClient(ctx context.Context, opts ConnectionOptions) (*SystemMetricsClient, error) {
 	var conn *grpc.ClientConn
 	var err error
 
 	ctx, cancel := context.WithCancel(ctx)
-	if clientConn == nil {
-		if opts.APIKey == "" {
-			return nil, errors.New("must specify an API key when a client connection is not provided")
-		}
-		if opts.Username == "" {
-			return nil, errors.New("must specify a username when a client connection is not provided")
-		}
-		rpcOpts := timber.DialCedarOptions{
-			Username: opts.Username,
-			APIKey:   opts.APIKey,
-		}
-
-		conn, err = timber.DialCedar(ctx, &opts.Client, rpcOpts)
-		if err != nil {
-			return nil, errors.Wrap(err, "problem dialing rpc server")
-		}
+	if opts.APIKey == "" {
+		return nil, errors.New("must specify an API key when a client connection is not provided")
+	}
+	if opts.Username == "" {
+		return nil, errors.New("must specify a username when a client connection is not provided")
+	}
+	rpcOpts := timber.DialCedarOptions{
+		Username: opts.Username,
+		APIKey:   opts.APIKey,
 	}
 
-	s := &systemMetricsClient{
+	conn, err = timber.DialCedar(ctx, &opts.Client, rpcOpts)
+	if err != nil {
+		return nil, errors.Wrap(err, "problem dialing rpc server")
+	}
+
+	s := &SystemMetricsClient{
 		client: internal.NewCedarSystemMetricsClient(conn),
+		cancel: cancel,
+	}
+	return s, nil
+}
+
+func NewSystemMetricsClientWithExistingClient(ctx context.Context, clientConn *grpc.ClientConn) (*SystemMetricsClient, error) {
+	if clientConn == nil {
+		return nil, errors.New("Must provide existing client connection")
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	s := &SystemMetricsClient{
+		client: internal.NewCedarSystemMetricsClient(clientConn),
 		cancel: cancel,
 	}
 	return s, nil
@@ -110,7 +121,7 @@ type SystemMetricsOptions struct {
 
 // CreateSystemMetrics creates a system metrics metadata object in cedar with
 // the provided info, along with setting the created_at timestamp.
-func (s *systemMetricsClient) CreateSystemMetricRecord(ctx context.Context, opts SystemMetricsOptions) (string, error) {
+func (s *SystemMetricsClient) CreateSystemMetricRecord(ctx context.Context, opts SystemMetricsOptions) (string, error) {
 	// validation
 	if err := opts.Compression.validate(); err != nil {
 		return "", err
@@ -129,7 +140,7 @@ func (s *systemMetricsClient) CreateSystemMetricRecord(ctx context.Context, opts
 
 // AddSystemMetricsData sends the given byte slice to the cedar backend for the
 // system metrics object with the corresponding id.
-func (s *systemMetricsClient) AddSystemMetrics(ctx context.Context, id string, data []byte) error {
+func (s *SystemMetricsClient) AddSystemMetrics(ctx context.Context, id string, data []byte) error {
 	if id == "" {
 		return errors.New("must specify id of system metrics object")
 	}
@@ -145,13 +156,13 @@ func (s *systemMetricsClient) AddSystemMetrics(ctx context.Context, id string, d
 }
 
 // StreamSystemMetrics is currently a no-op, will be implemented later.
-func (s *systemMetricsClient) StreamSystemMetrics(ctx context.Context, id string, data []byte) error {
+func (s *SystemMetricsClient) StreamSystemMetrics(ctx context.Context, id string, data []byte) error {
 	return nil
 }
 
 // CloseMetrics will add the completed_at timestamp to the system metrics object
 // in cedar with the corresponding id.
-func (s *systemMetricsClient) CloseSystemMetrics(ctx context.Context, id string) error {
+func (s *SystemMetricsClient) CloseSystemMetrics(ctx context.Context, id string) error {
 	if id == "" {
 		return errors.New("must specify id of system metrics object")
 	}
