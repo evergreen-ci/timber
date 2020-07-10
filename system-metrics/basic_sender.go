@@ -52,8 +52,8 @@ func (f SchemaType) validate() error {
 }
 
 type SystemMetricsClient struct {
-	cancel context.CancelFunc
-	client internal.CedarSystemMetricsClient
+	client     internal.CedarSystemMetricsClient
+	clientConn *grpc.ClientConn
 }
 
 type ConnectionOptions struct {
@@ -66,7 +66,6 @@ func NewSystemMetricsClient(ctx context.Context, opts ConnectionOptions) (*Syste
 	var conn *grpc.ClientConn
 	var err error
 
-	ctx, cancel := context.WithCancel(ctx)
 	if opts.APIKey == "" {
 		return nil, errors.New("must specify an API key when a client connection is not provided")
 	}
@@ -84,8 +83,8 @@ func NewSystemMetricsClient(ctx context.Context, opts ConnectionOptions) (*Syste
 	}
 
 	s := &SystemMetricsClient{
-		client: internal.NewCedarSystemMetricsClient(conn),
-		cancel: cancel,
+		client:     internal.NewCedarSystemMetricsClient(conn),
+		clientConn: conn,
 	}
 	return s, nil
 }
@@ -95,10 +94,8 @@ func NewSystemMetricsClientWithExistingClient(ctx context.Context, clientConn *g
 		return nil, errors.New("Must provide existing client connection")
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
 	s := &SystemMetricsClient{
 		client: internal.NewCedarSystemMetricsClient(clientConn),
-		cancel: cancel,
 	}
 	return s, nil
 }
@@ -172,6 +169,15 @@ func (s *SystemMetricsClient) CloseSystemMetrics(ctx context.Context, id string)
 	}
 	_, err := s.client.CloseMetrics(ctx, endInfo)
 	return err
+}
+
+// CloseClient closes out the client connection if one was created by
+// NewSystemMetricsClient.
+func (s *SystemMetricsClient) CloseClient() error {
+	if s.clientConn == nil {
+		return nil
+	}
+	return s.clientConn.Close()
 }
 
 func createSystemMetrics(opts SystemMetricsOptions) *internal.SystemMetrics {
