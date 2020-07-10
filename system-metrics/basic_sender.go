@@ -3,17 +3,11 @@ package systemmetrics
 import (
 	"context"
 	"net/http"
-	"sync"
 
 	"github.com/evergreen-ci/timber"
 	"github.com/evergreen-ci/timber/internal"
-	"github.com/mongodb/grip"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
-)
-
-const (
-	defaultMaxBufferSize int = 1e7
 )
 
 // CompressionType describes how the system metrics data is compressed.
@@ -57,84 +51,29 @@ func (f SchemaType) validate() error {
 	}
 }
 
-type metricslogger struct {
-	mu         sync.Mutex
-	ctx        context.Context
-	cancel     context.CancelFunc
-	opts       *SystemMetricsOptions
-	conn       *grpc.ClientConn
-	client     internal.CedarSystemMetricsClient
-	buffer     []byte
-	bufferSize int
-	closed     bool
+type systemMetricsClient struct {
+	cancel context.CancelFunc
+	client internal.CedarSystemMetricsClient
 }
 
-// SystemMetricsOptions support the use and creation of a system metrics object.
-type SystemMetricsOptions struct {
-	// Unique information to identify the system metrics object.
-	Project   string `bson:"project" json:"project" yaml:"project"`
-	Version   string `bson:"version" json:"version" yaml:"version"`
-	Variant   string `bson:"variant" json:"variant" yaml:"variant"`
-	TaskName  string `bson:"task_name" json:"task_name" yaml:"task_name"`
-	TaskID    string `bson:"task_id" json:"task_id" yaml:"task_id"`
-	Execution int32  `bson:"execution" json:"execution" yaml:"execution"`
-	Mainline  bool   `bson:"mainline" json:"mainline" yaml:"mainline"`
-
-	// Data storage information for this object
-	Compression CompressionType `bson:"compression" json:"compression" yaml:"compression"`
-	Schema      SchemaType      `bson:"schema" json:"schema" yaml:"schema"`
-
-	// The number max number of bytes to buffer before sending log data
-	// over rpc to cedar. Defaults to 10MB.
-	MaxBufferSize int `bson:"max_buffer_size" json:"max_buffer_size" yaml:"max_buffer_size"`
-
-	// The gRPC client connection. If nil, a new connection will be
-	// established with the gRPC connection configuration.
-	ClientConn *grpc.ClientConn `bson:"-" json:"-" yaml:"-"`
-
-	// Configuration for gRPC client connection.
-	APIKey   string      `bson:"api_key" json:"api_key" yaml:"api_key"`
-	Username string      `bson:"username" json:"username" yaml:"username"`
-	Client   http.Client `bson:"client" json:"client" yaml:"client"`
-
-	systemMetricsID string
+type ConnectionOptions struct {
+	APIKey   string
+	Username string
+	Client   http.Client
 }
 
-func (opts *SystemMetricsOptions) validate() error {
-	if err := opts.Compression.validate(); err != nil {
-		return err
-	}
-	if err := opts.Schema.validate(); err != nil {
-		return err
-	}
-
-	if opts.ClientConn == nil {
-		if opts.APIKey == "" {
-			return errors.New("must specify an API key when a client connection is not provided")
-		}
-		if opts.Username == "" {
-			return errors.New("must specify a username when a client connection is not provided")
-		}
-	}
-
-	if opts.MaxBufferSize == 0 {
-		opts.MaxBufferSize = defaultMaxBufferSize
-	}
-
-	return nil
-}
-
-// CreateSystemMetrics creates a system metrics metadata object in cedar with
-// the provided options, along with setting the created_at timestamp.
-func CreateSystemMetrics(name string, opts *SystemMetricsOptions) (*metricslogger, error) {
-	ctx := context.Background()
-	if err := opts.validate(); err != nil {
-		return nil, errors.Wrap(err, "invalid cedar metricslogger options")
-	}
-
+func NewSystemMetricsClient(ctx context.Context, clientConn *grpc.ClientConn, opts ConnectionOptions) (*systemMetricsClient, error) {
 	var conn *grpc.ClientConn
 	var err error
-	if opts.ClientConn == nil {
+
+	ctx, cancel := context.WithCancel(ctx)
+	if clientConn == nil {
+		if opts.APIKey == "" {
+			return nil, errors.New("must specify an API key when a client connection is not provided")
+		}
+		if opts.Username == "" {
+			return nil, errors.New("must specify a username when a client connection is not provided")
+		}
 		rpcOpts := timber.DialCedarOptions{
 			Username: opts.Username,
 			APIKey:   opts.APIKey,
@@ -144,134 +83,100 @@ func CreateSystemMetrics(name string, opts *SystemMetricsOptions) (*metricslogge
 		if err != nil {
 			return nil, errors.Wrap(err, "problem dialing rpc server")
 		}
-		opts.ClientConn = conn
 	}
 
-	m := &metricslogger{
-		ctx:    ctx,
-		opts:   opts,
-		conn:   conn,
-		client: internal.NewCedarSystemMetricsClient(opts.ClientConn),
-		buffer: []byte{},
+	s := &systemMetricsClient{
+		client: internal.NewCedarSystemMetricsClient(conn),
+		cancel: cancel,
 	}
-
-	if err := m.createNewSystemMetrics(); err != nil {
-		return nil, err
-	}
-
-	ctx, cancel := context.WithCancel(ctx)
-	m.ctx = ctx
-	m.cancel = cancel
-
-	return m, nil
+	return s, nil
 }
 
-// AddSystemMetricsData sends the given byte slice to the cedar backend. This
-// function buffers the data until the maximum allowed buffer size is reached,
-// at which point the data in the buffer is sent to the cedar server via RPC.
-// Send is thread safe.
-func (m *metricslogger) AddSystemMetricsData(data []byte) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+// SystemMetricsOptions support the use and creation of a system metrics object.
+type SystemMetricsOptions struct {
+	// Unique information to identify the system metrics object.
+	Project   string `bson:"project" json:"project" yaml:"project"`
+	Version   string `bson:"version" json:"version" yaml:"version"`
+	Variant   string `bson:"variant" json:"variant" yaml:"variant"`
+	TaskName  string `bson:"task_name" json:"task_name" yaml:"task_name"`
+	TaskId    string `bson:"task_id" json:"task_id" yaml:"task_id"`
+	Execution int32  `bson:"execution" json:"execution" yaml:"execution"`
+	Mainline  bool   `bson:"mainline" json:"mainline" yaml:"mainline"`
 
-	if m.closed {
-		return errors.New("cannot call Send on a closed system metrics logger")
-	}
-
-	if m.bufferSize+len(data) > m.opts.MaxBufferSize {
-		for total := m.bufferSize + len(data); total > m.opts.MaxBufferSize; total -= m.opts.MaxBufferSize {
-			capacity := m.opts.MaxBufferSize - m.bufferSize
-			m.buffer = append(m.buffer, data[:capacity]...)
-			m.bufferSize += capacity
-			data = data[capacity:]
-
-			if err := m.flush(m.ctx); err != nil {
-				return errors.Wrap(err, "problem flushing buffer")
-			}
-		}
-	} else {
-		m.buffer = append(m.buffer, data...)
-		m.bufferSize += len(data)
-	}
-
-	return nil
+	// Data storage information for this object
+	Compression CompressionType `bson:"compression" json:"compression" yaml:"compression"`
+	Schema      SchemaType      `bson:"schema" json:"schema" yaml:"schema"`
 }
 
-// Close flushes anything that may be left in the underlying buffer and closes
-// out the system metrics object with a completed at timestamp. If the gRPC
-// client connection was created in CreateSystemMetrics, this connection is also
-// closed. Close is thread safe but should only be called once no more calls
-// to Send are needed; after Close has been called any subsequent calls to Send
-// will error. After the first call to Close subsequent calls will no-op.
-func (m *metricslogger) CloseSystemMetrics() error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	defer m.cancel()
+// CreateSystemMetrics creates a system metrics metadata object in cedar with
+// the provided info, along with setting the created_at timestamp.
+func (s *systemMetricsClient) CreateSystemMetricRecord(ctx context.Context, opts SystemMetricsOptions) (string, error) {
+	// validation
+	if err := opts.Compression.validate(); err != nil {
+		return "", err
+	}
+	if err := opts.Schema.validate(); err != nil {
+		return "", err
+	}
 
-	if m.closed {
+	resp, err := s.client.CreateSystemMetricRecord(ctx, createSystemMetrics(opts))
+	if err != nil {
+		return "", errors.Wrap(err, "problem creating system metrics object")
+	}
+
+	return resp.Id, nil
+}
+
+// AddSystemMetricsData sends the given byte slice to the cedar backend for the
+// system metrics object with the corresponding id.
+func (s *systemMetricsClient) AddSystemMetrics(ctx context.Context, id string, data []byte) error {
+	if id == "" {
+		return errors.New("must specify id of system metrics object")
+	}
+	if len(data) == 0 {
 		return nil
 	}
-	catcher := grip.NewBasicCatcher()
 
-	if len(m.buffer) > 0 {
-		if err := m.flush(m.ctx); err != nil {
-			catcher.Add(errors.Wrap(err, "problem flushing buffer"))
-		}
-	}
-
-	if !catcher.HasErrors() {
-		endInfo := &internal.SystemMetricsSeriesEnd{
-			Id: m.opts.systemMetricsID,
-		}
-		_, err := m.client.CloseMetrics(m.ctx, endInfo)
-		catcher.Add(errors.Wrap(err, "problem closing system metrics object"))
-	}
-
-	if m.conn != nil {
-		catcher.Add(m.conn.Close())
-	}
-
-	m.closed = true
-
-	return catcher.Resolve()
+	_, err := s.client.AddSystemMetrics(ctx, &internal.SystemMetricsData{
+		Id:   id,
+		Data: data,
+	})
+	return err
 }
 
-func (m *metricslogger) createNewSystemMetrics() error {
-	data := &internal.SystemMetrics{
+// StreamSystemMetrics is currently a no-op, will be implemented later.
+func (s *systemMetricsClient) StreamSystemMetrics(ctx context.Context, id string, data []byte) error {
+	return nil
+}
+
+// CloseMetrics will add the completed_at timestamp to the system metrics object
+// in cedar with the corresponding id.
+func (s *systemMetricsClient) CloseSystemMetrics(ctx context.Context, id string) error {
+	if id == "" {
+		return errors.New("must specify id of system metrics object")
+	}
+
+	endInfo := &internal.SystemMetricsSeriesEnd{
+		Id: id,
+	}
+	_, err := s.client.CloseMetrics(ctx, endInfo)
+	return err
+}
+
+func createSystemMetrics(opts SystemMetricsOptions) *internal.SystemMetrics {
+	return &internal.SystemMetrics{
 		Info: &internal.SystemMetricsInfo{
-			Project:   m.opts.Project,
-			Version:   m.opts.Version,
-			Variant:   m.opts.Variant,
-			TaskName:  m.opts.TaskName,
-			TaskId:    m.opts.TaskID,
-			Execution: m.opts.Execution,
-			Mainline:  m.opts.Mainline,
+			Project:   opts.Project,
+			Version:   opts.Version,
+			Variant:   opts.Variant,
+			TaskName:  opts.TaskName,
+			TaskId:    opts.TaskId,
+			Execution: opts.Execution,
+			Mainline:  opts.Mainline,
 		},
 		Artifact: &internal.SystemMetricsArtifactInfo{
-			Compression: internal.CompressionType(m.opts.Compression),
-			Schema:      internal.SchemaType(m.opts.Schema),
+			Compression: internal.CompressionType(opts.Compression),
+			Schema:      internal.SchemaType(opts.Schema),
 		},
 	}
-	resp, err := m.client.CreateSystemMetricRecord(m.ctx, data)
-	if err != nil {
-		return errors.Wrap(err, "problem creating system metrics object")
-	}
-	m.opts.systemMetricsID = resp.Id
-
-	return nil
-}
-
-func (m *metricslogger) flush(ctx context.Context) error {
-	_, err := m.client.AddSystemMetrics(ctx, &internal.SystemMetricsData{
-		Id:   m.opts.systemMetricsID,
-		Data: m.buffer,
-	})
-	if err != nil {
-		return err
-	}
-
-	m.buffer = []byte{}
-	m.bufferSize = 0
-
-	return nil
 }
