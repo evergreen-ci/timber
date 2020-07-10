@@ -2,6 +2,7 @@ package systemmetrics
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/evergreen-ci/timber"
@@ -57,8 +58,7 @@ type SystemMetricsClient struct {
 }
 
 type ConnectionOptions struct {
-	APIKey   string
-	Username string
+	DialOpts timber.DialCedarOptions
 	Client   http.Client
 }
 
@@ -66,18 +66,15 @@ func NewSystemMetricsClient(ctx context.Context, opts ConnectionOptions) (*Syste
 	var conn *grpc.ClientConn
 	var err error
 
-	if opts.APIKey == "" {
-		return nil, errors.New("must specify an API key when a client connection is not provided")
+	if opts.DialOpts.APIKey == "" || opts.DialOpts.Username == "" {
+		if opts.DialOpts.BaseAddress == "" || opts.DialOpts.RPCPort == "" {
+			return nil, errors.New("must specify either authentication credential or insecure address and port")
+		}
+		addr := fmt.Sprintf("%s:%s", opts.DialOpts.BaseAddress, opts.DialOpts.RPCPort)
+		conn, err = grpc.DialContext(ctx, addr, grpc.WithInsecure())
+	} else {
+		conn, err = timber.DialCedar(ctx, &opts.Client, opts.DialOpts)
 	}
-	if opts.Username == "" {
-		return nil, errors.New("must specify a username when a client connection is not provided")
-	}
-	rpcOpts := timber.DialCedarOptions{
-		Username: opts.Username,
-		APIKey:   opts.APIKey,
-	}
-
-	conn, err = timber.DialCedar(ctx, &opts.Client, rpcOpts)
 	if err != nil {
 		return nil, errors.Wrap(err, "problem dialing rpc server")
 	}
@@ -89,7 +86,7 @@ func NewSystemMetricsClient(ctx context.Context, opts ConnectionOptions) (*Syste
 	return s, nil
 }
 
-func NewSystemMetricsClientWithExistingClient(ctx context.Context, clientConn *grpc.ClientConn) (*SystemMetricsClient, error) {
+func NewSystemMetricsClientWithExistingConnection(ctx context.Context, clientConn *grpc.ClientConn) (*SystemMetricsClient, error) {
 	if clientConn == nil {
 		return nil, errors.New("Must provide existing client connection")
 	}
