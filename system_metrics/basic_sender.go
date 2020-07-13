@@ -93,7 +93,7 @@ func NewSystemMetricsClient(ctx context.Context, opts ConnectionOptions) (*Syste
 		return nil, errors.Wrap(err, "invalid connection options")
 	}
 
-	if opts.DialOpts.APIKey == "" || opts.DialOpts.Username == "" {
+	if opts.DialOpts.APIKey == "" {
 		addr := fmt.Sprintf("%s:%s", opts.DialOpts.BaseAddress, opts.DialOpts.RPCPort)
 		conn, err = grpc.DialContext(ctx, addr, grpc.WithInsecure())
 	} else {
