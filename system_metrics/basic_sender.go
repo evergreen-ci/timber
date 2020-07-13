@@ -52,8 +52,8 @@ func (f SchemaType) validate() error {
 	}
 }
 
-// SystemMetricsClient provides a wrapper around the grpc client for sending system.
-// metrics data to cedar
+// SystemMetricsClient provides a wrapper around the grpc client for sending system
+// metrics data to cedar.
 type SystemMetricsClient struct {
 	client     internal.CedarSystemMetricsClient
 	clientConn *grpc.ClientConn
