@@ -52,14 +52,14 @@ func (f SchemaType) validate() error {
 	}
 }
 
-// SystemMetricsClient provides a wrapper around the grpc client for sending system
+// SystemMetricsClient provides a wrapper around the grpc client for sending system.
 // metrics data to cedar
 type SystemMetricsClient struct {
 	client     internal.CedarSystemMetricsClient
 	clientConn *grpc.ClientConn
 }
 
-// ConnectionOptions contains the options needed to create a grpc connection with cedar
+// ConnectionOptions contains the options needed to create a grpc connection with cedar.
 type ConnectionOptions struct {
 	DialOpts timber.DialCedarOptions
 	Client   http.Client
@@ -74,8 +74,7 @@ func (opts ConnectionOptions) validate() error {
 		(opts.DialOpts.BaseAddress != "" && opts.DialOpts.RPCPort == "") {
 		return errors.New("must provide both base address and rpc port or neither")
 	}
-	if (opts.DialOpts.APIKey == "" || opts.DialOpts.Username == "") &&
-		(opts.DialOpts.BaseAddress == "" || opts.DialOpts.RPCPort == "") {
+	if opts.DialOpts.APIKey == "" && opts.DialOpts.BaseAddress == "" {
 		return errors.New("must specify username and api key, or address and port for an insecure connection")
 	}
 	return nil
