@@ -45,7 +45,7 @@ func (mc *mockClient) AddSystemMetrics(_ context.Context, in *internal.SystemMet
 }
 
 func (mc *mockClient) StreamSystemMetrics(_ context.Context, opts ...grpc.CallOption) (internal.CedarSystemMetrics_StreamSystemMetricsClient, error) {
-	return nil, nil
+	return nil, errors.New("Not implemented")
 }
 
 func (mc *mockClient) CloseMetrics(_ context.Context, in *internal.SystemMetricsSeriesEnd, opts ...grpc.CallOption) (*internal.SystemMetricsResponse, error) {
@@ -156,7 +156,7 @@ func TestCloseClient(t *testing.T) {
 	defer cancel()
 	srv := &mockServer{}
 	require.NoError(t, startRPCService(ctx, srv, 7000))
-	t.Run("WithClientConn", func(t *testing.T) {
+	t.Run("WithoutExistingConnection", func(t *testing.T) {
 		connOpts := ConnectionOptions{
 			Client: http.Client{},
 			DialOpts: timber.DialCedarOptions{
@@ -173,7 +173,7 @@ func TestCloseClient(t *testing.T) {
 		require.NoError(t, client.CloseClient())
 		require.Error(t, client.CloseSystemMetrics(ctx, "ID"))
 	})
-	t.Run("WithoutClientConn", func(t *testing.T) {
+	t.Run("WithExistingConnection", func(t *testing.T) {
 		addr := fmt.Sprintf("localhost:%d", 7000)
 		conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure())
 		require.NoError(t, err)
@@ -302,7 +302,7 @@ func TestAddSystemMetrics(t *testing.T) {
 		}
 		require.Error(t, s.AddSystemMetrics(ctx, "", []byte("Test byte string")))
 		assert.Nil(t, mc.data)
-		require.NoError(t, s.AddSystemMetrics(ctx, "ID", []byte{}))
+		require.Error(t, s.AddSystemMetrics(ctx, "ID", []byte{}))
 		assert.Nil(t, mc.data)
 	})
 	t.Run("RPCError", func(t *testing.T) {

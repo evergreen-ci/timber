@@ -52,17 +52,36 @@ func (f SchemaType) validate() error {
 	}
 }
 
+// SystemMetricsClient provides a wrapper around the grpc client for sending system
+// metrics data to cedar
 type SystemMetricsClient struct {
 	client     internal.CedarSystemMetricsClient
 	clientConn *grpc.ClientConn
 }
 
+// ConnectionOptions contains the options needed to create a grpc connection with cedar
 type ConnectionOptions struct {
 	DialOpts timber.DialCedarOptions
 	Client   http.Client
 }
 
-// NewSystemMetricsClient returns a grpc client to send system metrics data to
+func (opts ConnectionOptions) validate() error {
+	if (opts.DialOpts.APIKey == "" && opts.DialOpts.Username != "") ||
+		(opts.DialOpts.APIKey != "" && opts.DialOpts.Username == "") {
+		return errors.New("must provide both username and api key or neither")
+	}
+	if (opts.DialOpts.BaseAddress == "" && opts.DialOpts.RPCPort != "") ||
+		(opts.DialOpts.BaseAddress != "" && opts.DialOpts.RPCPort == "") {
+		return errors.New("must provide both base address and rpc port or neither")
+	}
+	if (opts.DialOpts.APIKey == "" || opts.DialOpts.Username == "") &&
+		(opts.DialOpts.BaseAddress == "" || opts.DialOpts.RPCPort == "") {
+		return errors.New("must specify username and api key, or address and port for an insecure connection")
+	}
+	return nil
+}
+
+// NewSystemMetricsClient returns a SystemMetricsClient to send system metrics data to
 // cedar. If authentication credentials (username and apikey) are not specified,
 // then an insecure connection will be established with the specified address
 // and port.
@@ -70,10 +89,12 @@ func NewSystemMetricsClient(ctx context.Context, opts ConnectionOptions) (*Syste
 	var conn *grpc.ClientConn
 	var err error
 
+	err = opts.validate()
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid connection options")
+	}
+
 	if opts.DialOpts.APIKey == "" || opts.DialOpts.Username == "" {
-		if opts.DialOpts.BaseAddress == "" || opts.DialOpts.RPCPort == "" {
-			return nil, errors.New("must specify either authentication credential or insecure address and port")
-		}
 		addr := fmt.Sprintf("%s:%s", opts.DialOpts.BaseAddress, opts.DialOpts.RPCPort)
 		conn, err = grpc.DialContext(ctx, addr, grpc.WithInsecure())
 	} else {
@@ -90,7 +111,7 @@ func NewSystemMetricsClient(ctx context.Context, opts ConnectionOptions) (*Syste
 	return s, nil
 }
 
-// NewSystemMetricsClientWithExistingConnection returns a grpc client to send
+// NewSystemMetricsClientWithExistingConnection returns a SystemMetricsClient to send
 // system metrics data to cedar, using the provided client connection.
 func NewSystemMetricsClientWithExistingConnection(ctx context.Context, clientConn *grpc.ClientConn) (*SystemMetricsClient, error) {
 	if clientConn == nil {
@@ -122,7 +143,6 @@ type SystemMetricsOptions struct {
 // CreateSystemMetrics creates a system metrics metadata object in cedar with
 // the provided info, along with setting the created_at timestamp.
 func (s *SystemMetricsClient) CreateSystemMetricRecord(ctx context.Context, opts SystemMetricsOptions) (string, error) {
-	// validation
 	if err := opts.Compression.validate(); err != nil {
 		return "", err
 	}
@@ -145,7 +165,7 @@ func (s *SystemMetricsClient) AddSystemMetrics(ctx context.Context, id string, d
 		return errors.New("must specify id of system metrics object")
 	}
 	if len(data) == 0 {
-		return nil
+		return errors.New("must provide data to send")
 	}
 
 	_, err := s.client.AddSystemMetrics(ctx, &internal.SystemMetricsData{
@@ -153,11 +173,6 @@ func (s *SystemMetricsClient) AddSystemMetrics(ctx context.Context, id string, d
 		Data: data,
 	})
 	return err
-}
-
-// StreamSystemMetrics is currently a no-op, will be implemented later.
-func (s *SystemMetricsClient) StreamSystemMetrics(ctx context.Context, id string, data []byte) error {
-	return nil
 }
 
 // CloseMetrics will add the completed_at timestamp to the system metrics object
