@@ -4,11 +4,19 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/evergreen-ci/timber"
 	"github.com/evergreen-ci/timber/internal"
+	"github.com/mongodb/grip"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+)
+
+const (
+	defaultMaxBufferSize int = 1e7
+	defaultFlushInterval     = time.Minute
 )
 
 // CompressionType describes how the system metrics data is compressed.
@@ -172,6 +180,161 @@ func (s *SystemMetricsClient) AddSystemMetrics(ctx context.Context, id string, d
 		Data: data,
 	})
 	return err
+}
+
+// SystemMetricsWriter is a wrapper around a stream of system metrics data
+// that implements buffering with timed flushes and the WriteCloser interface.
+type SystemMetricsWriter struct {
+	mu            sync.Mutex
+	ctx           context.Context
+	cancel        context.CancelFunc
+	catcher       grip.Catcher
+	id            string
+	stream        internal.CedarSystemMetrics_StreamSystemMetricsClient
+	buffer        []byte
+	maxBufferSize int
+	lastFlush     time.Time
+	timer         *time.Timer
+	flushInterval time.Duration
+	closed        bool
+}
+
+// Write adds provided data to the buffer, flushing it if it exceeds its max
+// size. Write will fail if the writer was previously closed or if a timed flush
+// encountered an error.
+func (s *SystemMetricsWriter) Write(data []byte) (n int, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.catcher.HasErrors() {
+		return 0, errors.Wrapf(s.catcher.Resolve(), "writer already closed due to error")
+	}
+	if s.closed {
+		return 0, errors.New("writer already closed")
+	}
+
+	s.buffer = append(s.buffer, data...)
+	if len(s.buffer) > s.maxBufferSize {
+		if err = s.flush(); err != nil {
+			s.catcher.Add(err)
+			s.catcher.Add(s.close())
+			return 0, errors.Wrapf(s.catcher.Resolve(), "problem writing data")
+		}
+	}
+	return len(data), nil
+}
+
+// Close flushes any remaining data in the buffer and closes the stream. If
+// the writer was previously closed, this returns an error.
+func (s *SystemMetricsWriter) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.catcher.HasErrors() {
+		return errors.Wrapf(s.catcher.Resolve(), "writer already closed due to error")
+	}
+	if s.closed {
+		return errors.New("writer already closed")
+	}
+
+	s.catcher.Add(s.flush())
+	s.catcher.Add(s.close())
+	return s.catcher.Resolve()
+}
+
+func (s *SystemMetricsWriter) flush() error {
+	data := &internal.SystemMetricsData{
+		Id:   s.id,
+		Data: s.buffer,
+	}
+
+	if err := s.stream.Send(data); err != nil {
+		return errors.Wrapf(err, "problem sending data for id %s", s.id)
+	}
+
+	s.buffer = []byte{}
+	return nil
+}
+
+func (s *SystemMetricsWriter) close() error {
+	s.cancel()
+	s.closed = true
+	_, err := s.stream.CloseAndRecv()
+	return err
+}
+
+func (s *SystemMetricsWriter) timedFlush() {
+	s.mu.Lock()
+	s.timer = time.NewTimer(s.flushInterval)
+	s.mu.Unlock()
+	defer s.timer.Stop()
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-s.timer.C:
+			s.mu.Lock()
+			if len(s.buffer) > 0 && time.Since(s.lastFlush) >= s.flushInterval {
+				if err := s.flush(); err != nil {
+					s.catcher.Add(errors.Wrapf(err, "problem with timed flush for id %s", s.id))
+					s.catcher.Add(s.close())
+				}
+			}
+			_ = s.timer.Reset(s.flushInterval)
+			s.mu.Unlock()
+		}
+	}
+}
+
+// StreamOpts allow maximum buffer size and the maximum time between flushes to
+// be specified. If noFlush is true, then the timed flush will not occur.
+type StreamOpts struct {
+	flushInterval time.Duration
+	noFlush       bool
+	maxBufferSize int
+}
+
+func (s StreamOpts) validate() {
+	if s.flushInterval == 0 {
+		s.flushInterval = defaultFlushInterval
+	}
+
+	if s.maxBufferSize == 0 {
+		s.maxBufferSize = defaultMaxBufferSize
+	}
+}
+
+// StreamSystemMetrics returns a buffered WriteCloser that can be used to stream system
+// metrics data to cedar.
+func (s *SystemMetricsClient) StreamSystemMetrics(ctx context.Context, id string, opts StreamOpts) (*SystemMetricsWriter, error) {
+	if id == "" {
+		return nil, errors.New("must specify id of system metrics object")
+	}
+
+	opts.validate()
+
+	stream, err := s.client.StreamSystemMetrics(ctx)
+	if err != nil {
+		return nil, errors.Wrapf(err, "problem starting stream for %s", id)
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	writer := &SystemMetricsWriter{
+		ctx:           ctx,
+		cancel:        cancel,
+		catcher:       grip.NewBasicCatcher(),
+		id:            id,
+		stream:        stream,
+		buffer:        []byte{},
+		lastFlush:     time.Now(),
+		flushInterval: opts.flushInterval,
+	}
+
+	if !opts.noFlush {
+		go writer.timedFlush()
+	}
+	return writer, nil
 }
 
 // CloseMetrics will add the completed_at timestamp to the system metrics object
