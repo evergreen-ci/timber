@@ -182,9 +182,9 @@ func (s *SystemMetricsClient) AddSystemMetrics(ctx context.Context, id string, d
 	return err
 }
 
-// SystemMetricsWriter is a wrapper around a stream of system metrics data
+// SystemMetricsWriteCloser is a wrapper around a stream of system metrics data
 // that implements buffering with timed flushes and the WriteCloser interface.
-type SystemMetricsWriter struct {
+type SystemMetricsWriteCloser struct {
 	mu            sync.Mutex
 	ctx           context.Context
 	cancel        context.CancelFunc
@@ -202,7 +202,7 @@ type SystemMetricsWriter struct {
 // Write adds provided data to the buffer, flushing it if it exceeds its max
 // size. Write will fail if the writer was previously closed or if a timed flush
 // encountered an error.
-func (s *SystemMetricsWriter) Write(data []byte) (n int, err error) {
+func (s *SystemMetricsWriteCloser) Write(data []byte) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -215,7 +215,7 @@ func (s *SystemMetricsWriter) Write(data []byte) (n int, err error) {
 
 	s.buffer = append(s.buffer, data...)
 	if len(s.buffer) > s.maxBufferSize {
-		if err = s.flush(); err != nil {
+		if err := s.flush(); err != nil {
 			s.catcher.Add(err)
 			s.catcher.Add(s.close())
 			return 0, errors.Wrapf(s.catcher.Resolve(), "problem writing data")
@@ -226,7 +226,7 @@ func (s *SystemMetricsWriter) Write(data []byte) (n int, err error) {
 
 // Close flushes any remaining data in the buffer and closes the stream. If
 // the writer was previously closed, this returns an error.
-func (s *SystemMetricsWriter) Close() error {
+func (s *SystemMetricsWriteCloser) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -242,7 +242,7 @@ func (s *SystemMetricsWriter) Close() error {
 	return s.catcher.Resolve()
 }
 
-func (s *SystemMetricsWriter) flush() error {
+func (s *SystemMetricsWriteCloser) flush() error {
 	data := &internal.SystemMetricsData{
 		Id:   s.id,
 		Data: s.buffer,
@@ -256,14 +256,14 @@ func (s *SystemMetricsWriter) flush() error {
 	return nil
 }
 
-func (s *SystemMetricsWriter) close() error {
+func (s *SystemMetricsWriteCloser) close() error {
 	s.cancel()
 	s.closed = true
 	_, err := s.stream.CloseAndRecv()
 	return err
 }
 
-func (s *SystemMetricsWriter) timedFlush() {
+func (s *SystemMetricsWriteCloser) timedFlush() {
 	s.mu.Lock()
 	s.timer = time.NewTimer(s.flushInterval)
 	s.mu.Unlock()
@@ -274,45 +274,57 @@ func (s *SystemMetricsWriter) timedFlush() {
 		case <-s.ctx.Done():
 			return
 		case <-s.timer.C:
-			s.mu.Lock()
-			if len(s.buffer) > 0 && time.Since(s.lastFlush) >= s.flushInterval {
-				if err := s.flush(); err != nil {
-					s.catcher.Add(errors.Wrapf(err, "problem with timed flush for id %s", s.id))
-					s.catcher.Add(s.close())
+			func() {
+				s.mu.Lock()
+				defer s.mu.Unlock()
+				if len(s.buffer) > 0 && time.Since(s.lastFlush) >= s.flushInterval {
+					if err := s.flush(); err != nil {
+						s.catcher.Add(errors.Wrapf(err, "problem with timed flush for id %s", s.id))
+						s.catcher.Add(s.close())
+					}
 				}
-			}
-			_ = s.timer.Reset(s.flushInterval)
-			s.mu.Unlock()
+				_ = s.timer.Reset(s.flushInterval)
+			}()
 		}
 	}
 }
 
 // StreamOpts allow maximum buffer size and the maximum time between flushes to
-// be specified. If noFlush is true, then the timed flush will not occur.
+// be specified. If NoFlush is true, then the timed flush will not occur.
 type StreamOpts struct {
-	flushInterval time.Duration
-	noFlush       bool
-	maxBufferSize int
+	FlushInterval time.Duration
+	NoFlush       bool
+	MaxBufferSize int
 }
 
-func (s StreamOpts) validate() {
-	if s.flushInterval == 0 {
-		s.flushInterval = defaultFlushInterval
+func (s StreamOpts) validate() error {
+	if s.FlushInterval < 0 {
+		return errors.New("flush interval must not be negative")
+	}
+	if s.FlushInterval == 0 {
+		s.FlushInterval = defaultFlushInterval
 	}
 
-	if s.maxBufferSize == 0 {
-		s.maxBufferSize = defaultMaxBufferSize
+	if s.MaxBufferSize < 0 {
+		return errors.New("buffer size must not be negative")
 	}
+	if s.MaxBufferSize == 0 {
+		s.MaxBufferSize = defaultMaxBufferSize
+	}
+
+	return nil
 }
 
 // StreamSystemMetrics returns a buffered WriteCloser that can be used to stream system
 // metrics data to cedar.
-func (s *SystemMetricsClient) StreamSystemMetrics(ctx context.Context, id string, opts StreamOpts) (*SystemMetricsWriter, error) {
+func (s *SystemMetricsClient) StreamSystemMetrics(ctx context.Context, id string, opts StreamOpts) (*SystemMetricsWriteCloser, error) {
 	if id == "" {
 		return nil, errors.New("must specify id of system metrics object")
 	}
 
-	opts.validate()
+	if err := opts.validate(); err != nil {
+		return nil, errors.Wrapf(err, "invalid stream options for id %s", id)
+	}
 
 	stream, err := s.client.StreamSystemMetrics(ctx)
 	if err != nil {
@@ -320,18 +332,19 @@ func (s *SystemMetricsClient) StreamSystemMetrics(ctx context.Context, id string
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	writer := &SystemMetricsWriter{
+	writer := &SystemMetricsWriteCloser{
 		ctx:           ctx,
 		cancel:        cancel,
 		catcher:       grip.NewBasicCatcher(),
 		id:            id,
 		stream:        stream,
 		buffer:        []byte{},
+		maxBufferSize: opts.MaxBufferSize,
 		lastFlush:     time.Now(),
-		flushInterval: opts.flushInterval,
+		flushInterval: opts.FlushInterval,
 	}
 
-	if !opts.noFlush {
+	if !opts.NoFlush {
 		go writer.timedFlush()
 	}
 	return writer, nil
