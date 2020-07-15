@@ -504,7 +504,9 @@ func TestStreamWrite(t *testing.T) {
 		mc.stream.mu.Lock()
 		assert.Equal(t, 0, len(mc.stream.data))
 		mc.stream.mu.Unlock()
+		stream.mu.Unlock()
 		assert.Equal(t, testString, stream.buffer)
+		stream.mu.Unlock()
 	})
 	t.Run("OverBufferSize", func(t *testing.T) {
 		mc := &mockClient{}
@@ -526,7 +528,9 @@ func TestStreamWrite(t *testing.T) {
 		assert.Equal(t, 1, len(mc.stream.data))
 		assert.Equal(t, testString, mc.stream.data[0].Data)
 		mc.stream.mu.Unlock()
+		stream.mu.Lock()
 		assert.Equal(t, []byte{}, stream.buffer)
+		stream.mu.Unlock()
 	})
 	t.Run("ExistingDataInBuffer", func(t *testing.T) {
 		mc := &mockClient{}
@@ -546,7 +550,9 @@ func TestStreamWrite(t *testing.T) {
 		n, err := stream.Write(testString2)
 		require.NoError(t, err)
 		assert.Equal(t, len(testString2), n)
+		stream.mu.Lock()
 		assert.Equal(t, append(testString1, testString2...), stream.buffer)
+		stream.mu.Unlock()
 	})
 	t.Run("AlreadyClosed", func(t *testing.T) {
 		mc := &mockClient{}
@@ -619,7 +625,9 @@ func TestStreamTimedFlush(t *testing.T) {
 		assert.Equal(t, 1, len(mc.stream.data))
 		assert.Equal(t, testString, mc.stream.data[0].Data)
 		mc.stream.mu.Unlock()
+		stream.mu.Lock()
 		assert.Equal(t, []byte{}, stream.buffer)
+		stream.mu.Unlock()
 	})
 	t.Run("TimedFlushResetsTimer", func(t *testing.T) {
 		mc := &mockClient{}
@@ -640,8 +648,10 @@ func TestStreamTimedFlush(t *testing.T) {
 		lastFlush := stream.lastFlush
 
 		time.Sleep(2 * time.Second)
+		stream.mu.Lock()
 		assert.True(t, stream.lastFlush.After(lastFlush))
 		assert.NotNil(t, stream.timer)
+		stream.mu.Unlock()
 	})
 	t.Run("WriteResetsTimer", func(t *testing.T) {
 		mc := &mockClient{}
@@ -657,7 +667,9 @@ func TestStreamTimedFlush(t *testing.T) {
 
 		_, err = stream.Write([]byte("large test string"))
 		require.NoError(t, err)
+		stream.mu.Lock()
 		assert.True(t, time.Since(stream.lastFlush) < time.Second)
+		stream.mu.Unlock()
 		require.NoError(t, stream.Close())
 	})
 	t.Run("RPCError", func(t *testing.T) {
@@ -681,7 +693,9 @@ func TestStreamTimedFlush(t *testing.T) {
 		err = stream.Close()
 		require.Error(t, err)
 		assert.True(t, strings.HasPrefix(err.Error(), "writer already closed due to error"))
+		stream.mu.Lock()
 		assert.True(t, stream.closed)
+		stream.mu.Unlock()
 	})
 }
 
