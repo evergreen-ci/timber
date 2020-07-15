@@ -146,7 +146,7 @@ func (opts *LoggerOptions) validate() error {
 			return errors.New("must specify a base address and rpc port when a client connection is not provided")
 		}
 		if !opts.Insecure && (opts.Username == "" || opts.APIKey == "") {
-			return errors.New("must specify username and apikey when making a secure connection over RPC")
+			return errors.New("must specify username and API key when making a secure connection over RPC")
 		}
 	}
 
