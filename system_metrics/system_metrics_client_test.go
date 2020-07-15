@@ -394,6 +394,7 @@ func TestStreamSystemMetrics(t *testing.T) {
 			MaxBufferSize: 1e5,
 		})
 		require.NoError(t, err)
+		stream.mu.Lock()
 		assert.NotNil(t, stream.ctx)
 		assert.NotNil(t, stream.cancel)
 		assert.NotNil(t, stream.catcher)
@@ -402,10 +403,13 @@ func TestStreamSystemMetrics(t *testing.T) {
 		assert.NotNil(t, stream.buffer)
 		assert.Equal(t, int(1e5), stream.maxBufferSize)
 		assert.NotEqual(t, time.Time{}, stream.lastFlush)
+		stream.mu.Unlock()
 		time.Sleep(time.Second)
+		stream.mu.Lock()
 		assert.NotNil(t, stream.timer)
 		assert.Equal(t, time.Second, stream.flushInterval)
 		assert.False(t, stream.closed)
+		stream.mu.Unlock()
 		require.NoError(t, stream.Close())
 	})
 	t.Run("DefaultStreamOpts", func(t *testing.T) {
@@ -415,6 +419,7 @@ func TestStreamSystemMetrics(t *testing.T) {
 		}
 		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{})
 		require.NoError(t, err)
+		stream.mu.Lock()
 		assert.NotNil(t, stream.ctx)
 		assert.NotNil(t, stream.cancel)
 		assert.NotNil(t, stream.catcher)
@@ -423,10 +428,13 @@ func TestStreamSystemMetrics(t *testing.T) {
 		assert.NotNil(t, stream.buffer)
 		assert.Equal(t, defaultMaxBufferSize, stream.maxBufferSize)
 		assert.NotEqual(t, time.Time{}, stream.lastFlush)
+		stream.mu.Unlock()
 		time.Sleep(time.Second)
+		stream.mu.Lock()
 		assert.NotNil(t, stream.timer)
 		assert.Equal(t, defaultFlushInterval, stream.flushInterval)
 		assert.False(t, stream.closed)
+		stream.mu.Unlock()
 		require.NoError(t, stream.Close())
 	})
 	t.Run("NoTimedFlush", func(t *testing.T) {
@@ -645,7 +653,9 @@ func TestStreamTimedFlush(t *testing.T) {
 		assert.Equal(t, 0, len(mc.stream.data))
 		mc.stream.mu.Unlock()
 
+		stream.mu.Lock()
 		lastFlush := stream.lastFlush
+		stream.mu.Unlock()
 
 		time.Sleep(2 * time.Second)
 		stream.mu.Lock()
