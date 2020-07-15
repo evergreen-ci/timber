@@ -278,7 +278,6 @@ func (s *SystemMetricsWriteCloser) timedFlush() {
 	for {
 		select {
 		case <-s.ctx.Done():
-			s.timer = nil
 			return
 		case <-s.timer.C:
 			func() {

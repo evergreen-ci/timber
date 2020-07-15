@@ -712,10 +712,11 @@ func TestStreamClose(t *testing.T) {
 			FlushInterval: time.Second,
 		})
 		require.NoError(t, err)
+		lastFlush := stream.lastFlush
 
 		require.NoError(t, stream.Close())
-		time.Sleep(time.Second)
-		assert.Nil(t, stream.timer)
+		time.Sleep(2 * time.Second)
+		assert.Equal(t, lastFlush, stream.lastFlush)
 	})
 	t.Run("RPCError", func(t *testing.T) {
 		mc := &mockClient{
