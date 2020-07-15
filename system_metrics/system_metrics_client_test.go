@@ -602,7 +602,7 @@ func TestStreamTimedFlush(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 0, len(mc.stream.data))
 
-		time.Sleep(time.Second)
+		time.Sleep(2 * time.Second)
 		assert.Equal(t, 1, len(mc.stream.data))
 		assert.Equal(t, testString, mc.stream.data[0].Data)
 		assert.Equal(t, []byte{}, stream.buffer)
@@ -623,7 +623,7 @@ func TestStreamTimedFlush(t *testing.T) {
 
 		lastFlush := stream.lastFlush
 
-		time.Sleep(time.Second)
+		time.Sleep(2 * time.Second)
 		assert.True(t, stream.lastFlush.After(lastFlush))
 		assert.NotNil(t, stream.timer)
 	})
@@ -633,24 +633,16 @@ func TestStreamTimedFlush(t *testing.T) {
 			client: mc,
 		}
 		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
-			FlushInterval: 2 * time.Second,
-			MaxBufferSize: 20,
+			MaxBufferSize: 1,
 		})
 		require.NoError(t, err)
-		_, err = stream.Write([]byte("smaller than buf"))
-		require.NoError(t, err)
-		assert.Equal(t, 0, len(mc.stream.data))
-
 		time.Sleep(time.Second)
-		_, err = stream.Write([]byte("overflows buf"))
-		require.NoError(t, err)
-		_, err = stream.Write([]byte("smaller than buf"))
-		require.NoError(t, err)
-		beforeTimer := time.Now()
+		assert.False(t, time.Since(stream.lastFlush) < time.Second)
 
-		time.Sleep(time.Second)
-		assert.True(t, stream.lastFlush.Before(beforeTimer))
-		assert.NotNil(t, stream.timer)
+		_, err = stream.Write([]byte("large test string"))
+		require.NoError(t, err)
+		assert.True(t, time.Since(stream.lastFlush) < time.Second)
+		require.NoError(t, stream.Close())
 	})
 	t.Run("RPCError", func(t *testing.T) {
 		mc := &mockClient{
