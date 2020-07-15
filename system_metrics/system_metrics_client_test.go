@@ -504,7 +504,7 @@ func TestStreamWrite(t *testing.T) {
 		mc.stream.mu.Lock()
 		assert.Equal(t, 0, len(mc.stream.data))
 		mc.stream.mu.Unlock()
-		stream.mu.Unlock()
+		stream.mu.Lock()
 		assert.Equal(t, testString, stream.buffer)
 		stream.mu.Unlock()
 	})
