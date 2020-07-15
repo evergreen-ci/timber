@@ -212,6 +212,9 @@ func (s *SystemMetricsWriteCloser) Write(data []byte) (int, error) {
 	if s.closed {
 		return 0, errors.New("writer already closed")
 	}
+	if len(data) == 0 {
+		return 0, errors.New("must provide data to write")
+	}
 
 	s.buffer = append(s.buffer, data...)
 	if len(s.buffer) > s.maxBufferSize {
@@ -219,6 +222,9 @@ func (s *SystemMetricsWriteCloser) Write(data []byte) (int, error) {
 			s.catcher.Add(err)
 			s.catcher.Add(s.close())
 			return 0, errors.Wrapf(s.catcher.Resolve(), "problem writing data")
+		}
+		if s.timer != nil {
+			s.lastFlush = time.Now()
 		}
 	}
 	return len(data), nil
@@ -272,6 +278,7 @@ func (s *SystemMetricsWriteCloser) timedFlush() {
 	for {
 		select {
 		case <-s.ctx.Done():
+			s.timer = nil
 			return
 		case <-s.timer.C:
 			func() {
@@ -283,6 +290,7 @@ func (s *SystemMetricsWriteCloser) timedFlush() {
 						s.catcher.Add(s.close())
 					}
 				}
+				s.lastFlush = time.Now()
 				_ = s.timer.Reset(s.flushInterval)
 			}()
 		}
@@ -290,14 +298,14 @@ func (s *SystemMetricsWriteCloser) timedFlush() {
 }
 
 // StreamOpts allow maximum buffer size and the maximum time between flushes to
-// be specified. If NoFlush is true, then the timed flush will not occur.
+// be specified. If NoTimedFlush is true, then the timed flush will not occur.
 type StreamOpts struct {
 	FlushInterval time.Duration
-	NoFlush       bool
+	NoTimedFlush  bool
 	MaxBufferSize int
 }
 
-func (s StreamOpts) validate() error {
+func (s *StreamOpts) validate() error {
 	if s.FlushInterval < 0 {
 		return errors.New("flush interval must not be negative")
 	}
@@ -340,11 +348,11 @@ func (s *SystemMetricsClient) StreamSystemMetrics(ctx context.Context, id string
 		stream:        stream,
 		buffer:        []byte{},
 		maxBufferSize: opts.MaxBufferSize,
-		lastFlush:     time.Now(),
-		flushInterval: opts.FlushInterval,
 	}
 
-	if !opts.NoFlush {
+	if !opts.NoTimedFlush {
+		writer.lastFlush = time.Now()
+		writer.flushInterval = opts.FlushInterval
 		go writer.timedFlush()
 	}
 	return writer, nil
