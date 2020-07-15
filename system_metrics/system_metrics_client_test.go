@@ -610,7 +610,9 @@ func TestStreamTimedFlush(t *testing.T) {
 		testString := []byte("small test string")
 		_, err = stream.Write(testString)
 		require.NoError(t, err)
+		mc.stream.mu.Lock()
 		assert.Equal(t, 0, len(mc.stream.data))
+		mc.stream.mu.Unlock()
 
 		time.Sleep(2 * time.Second)
 		mc.stream.mu.Lock()
@@ -672,7 +674,7 @@ func TestStreamTimedFlush(t *testing.T) {
 		_, err = stream.Write([]byte("smaller than buf"))
 		require.NoError(t, err)
 
-		time.Sleep(time.Second)
+		time.Sleep(2 * time.Second)
 		_, err = stream.Write([]byte("random string"))
 		require.Error(t, err)
 		assert.True(t, strings.HasPrefix(err.Error(), "writer already closed due to error"))
