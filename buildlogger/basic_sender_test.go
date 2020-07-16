@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -237,7 +238,7 @@ func TestNewLogger(t *testing.T) {
 			Local:       &mockSender{Base: send.NewBase("test")},
 			Insecure:    true,
 			BaseAddress: "localhost",
-			RPCPort:     "4000",
+			RPCPort:     strconv.Itoa(port),
 		}
 
 		s, err := NewLoggerWithContext(ctx, name, l, opts)
