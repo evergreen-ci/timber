@@ -6,7 +6,7 @@ func init() {
 	intSource = func() <-chan int {
 		out := make(chan int, 25)
 		go func() {
-			id := 3000
+			id := 0
 			for {
 				id++
 				out <- id
@@ -18,6 +18,6 @@ func init() {
 
 // GetPortNumber returns a new port number that has not been used in the current
 // runtime.
-func GetPortNumber() int {
-	return <-intSource
+func GetPortNumber(base int) int {
+	return base + <-intSource
 }

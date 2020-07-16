@@ -191,7 +191,7 @@ func TestNewLogger(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	srv := &mockService{}
-	port := testutil.GetPortNumber()
+	port := testutil.GetPortNumber(4000)
 	require.NoError(t, startRPCService(ctx, srv, port))
 	addr := fmt.Sprintf("localhost:%d", port)
 	conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure())
