@@ -269,7 +269,11 @@ func (s *SystemMetricsWriteCloser) close() error {
 }
 
 func (s *SystemMetricsWriteCloser) timedFlush() {
-	defer func() { s.catcher.Add(recovery.HandlePanicWithError(recover(), nil, "op")) }()
+	defer func() {
+		message := "panic in systemMetrics timedFlush"
+		grip.Error(message)
+		s.catcher.Add(recovery.HandlePanicWithError(recover(), nil, message))
+	}()
 	s.mu.Lock()
 	s.timer = time.NewTimer(s.flushInterval)
 	s.mu.Unlock()
