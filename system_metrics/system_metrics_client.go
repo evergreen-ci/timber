@@ -10,6 +10,7 @@ import (
 	"github.com/evergreen-ci/timber"
 	"github.com/evergreen-ci/timber/internal"
 	"github.com/mongodb/grip"
+	"github.com/mongodb/grip/recovery"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
@@ -223,9 +224,6 @@ func (s *SystemMetricsWriteCloser) Write(data []byte) (int, error) {
 			s.catcher.Add(s.close())
 			return 0, errors.Wrapf(s.catcher.Resolve(), "problem writing data")
 		}
-		if s.timer != nil {
-			s.lastFlush = time.Now()
-		}
 	}
 	return len(data), nil
 }
@@ -259,6 +257,7 @@ func (s *SystemMetricsWriteCloser) flush() error {
 	}
 
 	s.buffer = []byte{}
+	s.lastFlush = time.Now()
 	return nil
 }
 
@@ -270,6 +269,7 @@ func (s *SystemMetricsWriteCloser) close() error {
 }
 
 func (s *SystemMetricsWriteCloser) timedFlush() {
+	defer func() { s.catcher.Add(recovery.HandlePanicWithError(recover(), nil, "op")) }()
 	s.mu.Lock()
 	s.timer = time.NewTimer(s.flushInterval)
 	s.mu.Unlock()
@@ -289,7 +289,6 @@ func (s *SystemMetricsWriteCloser) timedFlush() {
 						s.catcher.Add(s.close())
 					}
 				}
-				s.lastFlush = time.Now()
 				_ = s.timer.Reset(s.flushInterval)
 			}()
 		}

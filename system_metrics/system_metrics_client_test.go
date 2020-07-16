@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/evergreen-ci/timber"
 	"github.com/evergreen-ci/timber/internal"
+	"github.com/evergreen-ci/timber/testutil"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -65,8 +67,8 @@ func (m *mockStreamClient) Send(data *internal.SystemMetricsData) error {
 		return errors.New("problem sending data")
 	}
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.data = append(m.data, data)
-	m.mu.Unlock()
 	return nil
 }
 
@@ -75,8 +77,8 @@ func (m *mockStreamClient) CloseAndRecv() (*internal.SystemMetricsResponse, erro
 		return nil, errors.New("problem closing data")
 	}
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.close = true
-	m.mu.Unlock()
 	return &internal.SystemMetricsResponse{
 		Id: "ID",
 	}, nil
@@ -170,13 +172,14 @@ func TestNewSystemMetricsClient(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	srv := &mockServer{}
-	require.NoError(t, startRPCService(ctx, srv, 5000))
+	port := testutil.GetPortNumber()
+	require.NoError(t, startRPCService(ctx, srv, port))
 	t.Run("ValidOptions", func(t *testing.T) {
 		connOpts := ConnectionOptions{
 			Client: http.Client{},
 			DialOpts: timber.DialCedarOptions{
 				BaseAddress: "localhost",
-				RPCPort:     "5000",
+				RPCPort:     strconv.Itoa(port),
 			},
 		}
 		client, err := NewSystemMetricsClient(ctx, connOpts)
@@ -197,8 +200,9 @@ func TestNewSystemMetricsClientWithExistingClient(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	srv := &mockServer{}
-	require.NoError(t, startRPCService(ctx, srv, 6000))
-	addr := fmt.Sprintf("localhost:%d", 6000)
+	port := testutil.GetPortNumber()
+	require.NoError(t, startRPCService(ctx, srv, port))
+	addr := fmt.Sprintf("localhost:%d", port)
 	conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure())
 	require.NoError(t, err)
 
@@ -220,13 +224,14 @@ func TestCloseClient(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	srv := &mockServer{}
-	require.NoError(t, startRPCService(ctx, srv, 7000))
+	port := testutil.GetPortNumber()
+	require.NoError(t, startRPCService(ctx, srv, port))
 	t.Run("WithoutExistingConnection", func(t *testing.T) {
 		connOpts := ConnectionOptions{
 			Client: http.Client{},
 			DialOpts: timber.DialCedarOptions{
 				BaseAddress: "localhost",
-				RPCPort:     "7000",
+				RPCPort:     strconv.Itoa(port),
 			},
 		}
 		client, err := NewSystemMetricsClient(ctx, connOpts)
@@ -239,7 +244,7 @@ func TestCloseClient(t *testing.T) {
 		require.Error(t, client.CloseSystemMetrics(ctx, "ID"))
 	})
 	t.Run("WithExistingConnection", func(t *testing.T) {
-		addr := fmt.Sprintf("localhost:%d", 7000)
+		addr := fmt.Sprintf("localhost:%d", port)
 		conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure())
 		require.NoError(t, err)
 		client, err := NewSystemMetricsClientWithExistingConnection(ctx, conn)
@@ -250,6 +255,20 @@ func TestCloseClient(t *testing.T) {
 		require.NoError(t, client.CloseClient())
 		require.NoError(t, client.CloseSystemMetrics(ctx, "ID"))
 		require.NoError(t, conn.Close())
+	})
+	t.Run("AlreadyClosed", func(t *testing.T) {
+		connOpts := ConnectionOptions{
+			Client: http.Client{},
+			DialOpts: timber.DialCedarOptions{
+				BaseAddress: "localhost",
+				RPCPort:     strconv.Itoa(port),
+			},
+		}
+		client, err := NewSystemMetricsClient(ctx, connOpts)
+		require.NoError(t, err)
+		require.NoError(t, client.CloseClient())
+
+		require.Error(t, client.CloseClient())
 	})
 }
 
@@ -509,12 +528,8 @@ func TestStreamWrite(t *testing.T) {
 		n, err := stream.Write(testString)
 		require.NoError(t, err)
 		assert.Equal(t, len(testString), n)
-		mc.stream.mu.Lock()
 		assert.Equal(t, 0, len(mc.stream.data))
-		mc.stream.mu.Unlock()
-		stream.mu.Lock()
 		assert.Equal(t, testString, stream.buffer)
-		stream.mu.Unlock()
 	})
 	t.Run("OverBufferSize", func(t *testing.T) {
 		mc := &mockClient{}
@@ -752,9 +767,9 @@ func TestStreamClose(t *testing.T) {
 			FlushInterval: time.Second,
 		})
 		require.NoError(t, err)
+		require.NoError(t, stream.Close())
 		lastFlush := stream.lastFlush
 
-		require.NoError(t, stream.Close())
 		time.Sleep(2 * time.Second)
 		assert.Equal(t, lastFlush, stream.lastFlush)
 	})
