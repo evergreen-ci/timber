@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/evergreen-ci/timber/internal"
+	"github.com/evergreen-ci/timber/testutil"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/mongodb/grip/level"
 	"github.com/mongodb/grip/message"
@@ -190,8 +191,9 @@ func TestNewLogger(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	srv := &mockService{}
-	require.NoError(t, startRPCService(ctx, srv, 4000))
-	addr := fmt.Sprintf("localhost:%d", 4000)
+	port := testutil.GetPortNumber(4000)
+	require.NoError(t, startRPCService(ctx, srv, port))
+	addr := fmt.Sprintf("localhost:%d", port)
 	conn, err := grpc.DialContext(ctx, addr, grpc.WithInsecure())
 	require.NoError(t, err)
 
