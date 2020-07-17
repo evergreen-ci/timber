@@ -181,7 +181,7 @@ func (s *SystemMetricsClient) AddSystemMetrics(ctx context.Context, id, metricTy
 
 	_, err := s.client.AddSystemMetrics(ctx, &internal.SystemMetricsData{
 		Id:         id,
-		MetricType: metricType,
+		Type: metricType,
 		Data:       data,
 	})
 	return err
@@ -254,7 +254,7 @@ func (s *SystemMetricsWriteCloser) Close() error {
 func (s *SystemMetricsWriteCloser) flush() error {
 	data := &internal.SystemMetricsData{
 		Id:         s.id,
-		MetricType: s.metricType,
+		Type: s.metricType,
 		Data:       s.buffer,
 	}
 

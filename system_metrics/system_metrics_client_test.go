@@ -376,7 +376,7 @@ func TestAddSystemMetrics(t *testing.T) {
 		require.NoError(t, s.AddSystemMetrics(ctx, "ID", "Test", []byte("Test byte string")))
 		assert.Equal(t, &internal.SystemMetricsData{
 			Id:         "ID",
-			MetricType: "Test",
+			Type: "Test",
 			Data:       []byte("Test byte string"),
 		}, mc.data)
 	})

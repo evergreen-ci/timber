@@ -28,7 +28,7 @@ message SystemMetricsArtifactInfo {
 
 message SystemMetricsData {
   string id = 1;
-  string metric_type = 2;
+  string type = 2;
   bytes data = 3;
 }
 
