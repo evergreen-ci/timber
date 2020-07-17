@@ -373,10 +373,11 @@ func TestAddSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		require.NoError(t, s.AddSystemMetrics(ctx, "ID", []byte("Test byte string")))
+		require.NoError(t, s.AddSystemMetrics(ctx, "ID", "Test", []byte("Test byte string")))
 		assert.Equal(t, &internal.SystemMetricsData{
-			Id:   "ID",
-			Data: []byte("Test byte string"),
+			Id:         "ID",
+			Type: "Test",
+			Data:       []byte("Test byte string"),
 		}, mc.data)
 	})
 	t.Run("InvalidOptions", func(t *testing.T) {
@@ -384,9 +385,11 @@ func TestAddSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		require.Error(t, s.AddSystemMetrics(ctx, "", []byte("Test byte string")))
+		require.Error(t, s.AddSystemMetrics(ctx, "", "Test", []byte("Test byte string")))
 		assert.Nil(t, mc.data)
-		require.Error(t, s.AddSystemMetrics(ctx, "ID", []byte{}))
+		require.Error(t, s.AddSystemMetrics(ctx, "ID", "", []byte("Test byte string")))
+		assert.Nil(t, mc.data)
+		require.Error(t, s.AddSystemMetrics(ctx, "ID", "Test", []byte{}))
 		assert.Nil(t, mc.data)
 	})
 	t.Run("RPCError", func(t *testing.T) {
@@ -396,7 +399,7 @@ func TestAddSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		require.Error(t, s.AddSystemMetrics(ctx, "ID", []byte("Test byte string")))
+		require.Error(t, s.AddSystemMetrics(ctx, "ID", "Test", []byte("Test byte string")))
 		assert.Nil(t, mc.data)
 	})
 }
@@ -408,7 +411,7 @@ func TestStreamSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			FlushInterval: time.Second,
 			MaxBufferSize: 1e5,
 		})
@@ -418,6 +421,7 @@ func TestStreamSystemMetrics(t *testing.T) {
 		assert.NotNil(t, stream.cancel)
 		assert.NotNil(t, stream.catcher)
 		assert.Equal(t, "ID", stream.id)
+		assert.Equal(t, "Test", stream.metricType)
 		assert.Equal(t, mc.stream, stream.stream)
 		assert.NotNil(t, stream.buffer)
 		assert.Equal(t, int(1e5), stream.maxBufferSize)
@@ -436,13 +440,14 @@ func TestStreamSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{})
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{})
 		require.NoError(t, err)
 		stream.mu.Lock()
 		assert.NotNil(t, stream.ctx)
 		assert.NotNil(t, stream.cancel)
 		assert.NotNil(t, stream.catcher)
 		assert.Equal(t, "ID", stream.id)
+		assert.Equal(t, "Test", stream.metricType)
 		assert.Equal(t, mc.stream, stream.stream)
 		assert.NotNil(t, stream.buffer)
 		assert.Equal(t, defaultMaxBufferSize, stream.maxBufferSize)
@@ -461,7 +466,7 @@ func TestStreamSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			NoTimedFlush: true,
 		})
 		require.NoError(t, err)
@@ -469,6 +474,7 @@ func TestStreamSystemMetrics(t *testing.T) {
 		assert.NotNil(t, stream.cancel)
 		assert.NotNil(t, stream.catcher)
 		assert.Equal(t, "ID", stream.id)
+		assert.Equal(t, "Test", stream.metricType)
 		assert.Equal(t, mc.stream, stream.stream)
 		assert.NotNil(t, stream.buffer)
 		assert.Equal(t, defaultMaxBufferSize, stream.maxBufferSize)
@@ -484,15 +490,18 @@ func TestStreamSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "", StreamOpts{})
+		stream, err := s.StreamSystemMetrics(ctx, "", "Test", StreamOpts{})
 		require.Error(t, err)
 		assert.Nil(t, stream)
-		stream, err = s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err = s.StreamSystemMetrics(ctx, "ID", "", StreamOpts{})
+		require.Error(t, err)
+		assert.Nil(t, stream)
+		stream, err = s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			MaxBufferSize: -1,
 		})
 		require.Error(t, err)
 		assert.Nil(t, stream)
-		stream, err = s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err = s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			FlushInterval: -1,
 		})
 		require.Error(t, err)
@@ -505,7 +514,7 @@ func TestStreamSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{})
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{})
 		require.Error(t, err)
 		assert.Nil(t, stream)
 	})
@@ -518,7 +527,7 @@ func TestStreamWrite(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			NoTimedFlush: true,
 		})
 		require.NoError(t, err)
@@ -536,7 +545,7 @@ func TestStreamWrite(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			NoTimedFlush:  true,
 			MaxBufferSize: 1,
 		})
@@ -560,7 +569,7 @@ func TestStreamWrite(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			NoTimedFlush: true,
 		})
 		require.NoError(t, err)
@@ -582,7 +591,7 @@ func TestStreamWrite(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			NoTimedFlush: true,
 		})
 		require.NoError(t, err)
@@ -597,7 +606,7 @@ func TestStreamWrite(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			NoTimedFlush: true,
 		})
 		require.NoError(t, err)
@@ -613,7 +622,7 @@ func TestStreamWrite(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			NoTimedFlush:  true,
 			MaxBufferSize: 1,
 		})
@@ -632,7 +641,7 @@ func TestStreamTimedFlush(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			FlushInterval: time.Second,
 		})
 		require.NoError(t, err)
@@ -657,7 +666,7 @@ func TestStreamTimedFlush(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			FlushInterval: time.Second,
 		})
 		require.NoError(t, err)
@@ -683,7 +692,7 @@ func TestStreamTimedFlush(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			MaxBufferSize: 1,
 		})
 		require.NoError(t, err)
@@ -704,7 +713,7 @@ func TestStreamTimedFlush(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			FlushInterval: time.Second,
 		})
 		require.NoError(t, err)
@@ -731,7 +740,7 @@ func TestStreamClose(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			NoTimedFlush: true,
 		})
 		require.NoError(t, err)
@@ -750,7 +759,7 @@ func TestStreamClose(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			NoTimedFlush: true,
 		})
 		require.NoError(t, err)
@@ -763,7 +772,7 @@ func TestStreamClose(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			FlushInterval: time.Second,
 		})
 		require.NoError(t, err)
@@ -780,7 +789,7 @@ func TestStreamClose(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
 			NoTimedFlush: true,
 		})
 		require.NoError(t, err)

@@ -168,17 +168,21 @@ func (s *SystemMetricsClient) CreateSystemMetricRecord(ctx context.Context, opts
 
 // AddSystemMetricsData sends the given byte slice to the cedar backend for the
 // system metrics object with the corresponding id.
-func (s *SystemMetricsClient) AddSystemMetrics(ctx context.Context, id string, data []byte) error {
+func (s *SystemMetricsClient) AddSystemMetrics(ctx context.Context, id, metricType string, data []byte) error {
 	if id == "" {
 		return errors.New("must specify id of system metrics object")
+	}
+	if metricType == "" {
+		return errors.New("must specify the the type of metric in data")
 	}
 	if len(data) == 0 {
 		return errors.New("must provide data to send")
 	}
 
 	_, err := s.client.AddSystemMetrics(ctx, &internal.SystemMetricsData{
-		Id:   id,
-		Data: data,
+		Id:         id,
+		Type: metricType,
+		Data:       data,
 	})
 	return err
 }
@@ -191,6 +195,7 @@ type SystemMetricsWriteCloser struct {
 	cancel        context.CancelFunc
 	catcher       grip.Catcher
 	id            string
+	metricType    string
 	stream        internal.CedarSystemMetrics_StreamSystemMetricsClient
 	buffer        []byte
 	maxBufferSize int
@@ -248,8 +253,9 @@ func (s *SystemMetricsWriteCloser) Close() error {
 
 func (s *SystemMetricsWriteCloser) flush() error {
 	data := &internal.SystemMetricsData{
-		Id:   s.id,
-		Data: s.buffer,
+		Id:         s.id,
+		Type: s.metricType,
+		Data:       s.buffer,
 	}
 
 	if err := s.stream.Send(data); err != nil {
@@ -327,9 +333,12 @@ func (s *StreamOpts) validate() error {
 
 // StreamSystemMetrics returns a buffered WriteCloser that can be used to stream system
 // metrics data to cedar.
-func (s *SystemMetricsClient) StreamSystemMetrics(ctx context.Context, id string, opts StreamOpts) (*SystemMetricsWriteCloser, error) {
+func (s *SystemMetricsClient) StreamSystemMetrics(ctx context.Context, id, metricType string, opts StreamOpts) (*SystemMetricsWriteCloser, error) {
 	if id == "" {
 		return nil, errors.New("must specify id of system metrics object")
+	}
+	if metricType == "" {
+		return nil, errors.New("must specify type of metric data")
 	}
 
 	if err := opts.validate(); err != nil {
@@ -347,6 +356,7 @@ func (s *SystemMetricsClient) StreamSystemMetrics(ctx context.Context, id string
 		cancel:        cancel,
 		catcher:       grip.NewBasicCatcher(),
 		id:            id,
+		metricType:    metricType,
 		stream:        stream,
 		buffer:        []byte{},
 		maxBufferSize: opts.MaxBufferSize,
