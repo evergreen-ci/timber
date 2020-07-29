@@ -61,6 +61,27 @@ func (f SchemaType) validate() error {
 	}
 }
 
+// DataFormat describes how the time series data is stored.
+type DataFormat int32
+
+// Valid DataFormat values.
+const (
+	DataFormatText DataFormat = 0
+	DataFormatFTDC DataFormat = 1
+	DataFormatBSON DataFormat = 2
+	DataFormatJSON DataFormat = 3
+	DataFormatCSV  DataFormat = 4
+)
+
+func (f DataFormat) validate() error {
+	switch f {
+	case DataFormatText, DataFormatFTDC, DataFormatBSON, DataFormatJSON, DataFormatCSV:
+		return nil
+	default:
+		return errors.New("invalid schema type specified")
+	}
+}
+
 // SystemMetricsClient provides a wrapper around the grpc client for sending system
 // metrics data to cedar.
 type SystemMetricsClient struct {
@@ -146,11 +167,12 @@ type SystemMetricsOptions struct {
 	// Data storage information for this object
 	Compression CompressionType `bson:"compression" json:"compression" yaml:"compression"`
 	Schema      SchemaType      `bson:"schema" json:"schema" yaml:"schema"`
+	Format      DataFormat      `bson:"format" json:"format" yaml:"format"`
 }
 
-// CreateSystemMetrics creates a system metrics metadata object in cedar with
+// CreateSystemMetricsRecord creates a system metrics metadata object in cedar with
 // the provided info, along with setting the created_at timestamp.
-func (s *SystemMetricsClient) CreateSystemMetricRecord(ctx context.Context, opts SystemMetricsOptions) (string, error) {
+func (s *SystemMetricsClient) CreateSystemMetricsRecord(ctx context.Context, opts SystemMetricsOptions) (string, error) {
 	if err := opts.Compression.validate(); err != nil {
 		return "", err
 	}
@@ -158,7 +180,7 @@ func (s *SystemMetricsClient) CreateSystemMetricRecord(ctx context.Context, opts
 		return "", err
 	}
 
-	resp, err := s.client.CreateSystemMetricRecord(ctx, createSystemMetrics(opts))
+	resp, err := s.client.CreateSystemMetricsRecord(ctx, createSystemMetrics(opts))
 	if err != nil {
 		return "", errors.Wrap(err, "problem creating system metrics object")
 	}
@@ -166,7 +188,7 @@ func (s *SystemMetricsClient) CreateSystemMetricRecord(ctx context.Context, opts
 	return resp.Id, nil
 }
 
-// AddSystemMetricsData sends the given byte slice to the cedar backend for the
+// AddSystemMetrics sends the given byte slice to the cedar backend for the
 // system metrics object with the corresponding id.
 func (s *SystemMetricsClient) AddSystemMetrics(ctx context.Context, id, metricType string, data []byte) error {
 	if id == "" {
@@ -277,8 +299,11 @@ func (s *SystemMetricsWriteCloser) close() error {
 func (s *SystemMetricsWriteCloser) timedFlush() {
 	defer func() {
 		message := "panic in systemMetrics timedFlush"
-		grip.Error(message)
-		s.catcher.Add(recovery.HandlePanicWithError(recover(), nil, message))
+		err := recovery.HandlePanicWithError(recover(), nil, message)
+		if err != nil {
+			grip.Error(message)
+			s.catcher.Add(err)
+		}
 	}()
 	s.mu.Lock()
 	s.timer = time.NewTimer(s.flushInterval)
@@ -371,14 +396,15 @@ func (s *SystemMetricsClient) StreamSystemMetrics(ctx context.Context, id, metri
 }
 
 // CloseMetrics will add the completed_at timestamp to the system metrics object
-// in cedar with the corresponding id.
-func (s *SystemMetricsClient) CloseSystemMetrics(ctx context.Context, id string) error {
+// in cedar with the corresponding id, as well as the success boolean.
+func (s *SystemMetricsClient) CloseSystemMetrics(ctx context.Context, id string, success bool) error {
 	if id == "" {
 		return errors.New("must specify id of system metrics object")
 	}
 
 	endInfo := &internal.SystemMetricsSeriesEnd{
-		Id: id,
+		Id:      id,
+		Success: success,
 	}
 	_, err := s.client.CloseMetrics(ctx, endInfo)
 	return err
@@ -407,6 +433,7 @@ func createSystemMetrics(opts SystemMetricsOptions) *internal.SystemMetrics {
 		Artifact: &internal.SystemMetricsArtifactInfo{
 			Compression: internal.CompressionType(opts.Compression),
 			Schema:      internal.SchemaType(opts.Schema),
+			Format:      internal.DataFormat(opts.Format),
 		},
 	}
 }

@@ -34,7 +34,7 @@ type mockClient struct {
 	close           *internal.SystemMetricsSeriesEnd
 }
 
-func (mc *mockClient) CreateSystemMetricRecord(_ context.Context, in *internal.SystemMetrics, opts ...grpc.CallOption) (*internal.SystemMetricsResponse, error) {
+func (mc *mockClient) CreateSystemMetricsRecord(_ context.Context, in *internal.SystemMetrics, opts ...grpc.CallOption) (*internal.SystemMetricsResponse, error) {
 	if mc.createErr {
 		return nil, errors.New("create error")
 	}
@@ -134,7 +134,7 @@ type mockServer struct {
 	close     bool
 }
 
-func (mc *mockServer) CreateSystemMetricRecord(_ context.Context, in *internal.SystemMetrics) (*internal.SystemMetricsResponse, error) {
+func (mc *mockServer) CreateSystemMetricsRecord(_ context.Context, in *internal.SystemMetrics) (*internal.SystemMetricsResponse, error) {
 	if mc.createErr {
 		return nil, errors.New("create error")
 	}
@@ -185,7 +185,7 @@ func TestNewSystemMetricsClient(t *testing.T) {
 		client, err := NewSystemMetricsClient(ctx, connOpts)
 		require.NoError(t, err)
 		require.NotNil(t, client)
-		require.NoError(t, client.CloseSystemMetrics(ctx, "ID"))
+		require.NoError(t, client.CloseSystemMetrics(ctx, "ID", true))
 		assert.True(t, srv.close)
 	})
 	t.Run("InvalidOptions", func(t *testing.T) {
@@ -210,7 +210,7 @@ func TestNewSystemMetricsClientWithExistingClient(t *testing.T) {
 		client, err := NewSystemMetricsClientWithExistingConnection(ctx, conn)
 		require.NoError(t, err)
 		require.NotNil(t, client)
-		require.NoError(t, client.CloseSystemMetrics(ctx, "ID"))
+		require.NoError(t, client.CloseSystemMetrics(ctx, "ID", true))
 		assert.True(t, srv.close)
 	})
 	t.Run("InvalidOptions", func(t *testing.T) {
@@ -237,11 +237,11 @@ func TestCloseClient(t *testing.T) {
 		client, err := NewSystemMetricsClient(ctx, connOpts)
 		require.NoError(t, err)
 		require.NotNil(t, client)
-		require.NoError(t, client.CloseSystemMetrics(ctx, "ID"))
+		require.NoError(t, client.CloseSystemMetrics(ctx, "ID", true))
 		assert.True(t, srv.close)
 
 		require.NoError(t, client.CloseClient())
-		require.Error(t, client.CloseSystemMetrics(ctx, "ID"))
+		require.Error(t, client.CloseSystemMetrics(ctx, "ID", true))
 	})
 	t.Run("WithExistingConnection", func(t *testing.T) {
 		addr := fmt.Sprintf("localhost:%d", port)
@@ -249,11 +249,11 @@ func TestCloseClient(t *testing.T) {
 		require.NoError(t, err)
 		client, err := NewSystemMetricsClientWithExistingConnection(ctx, conn)
 		require.NoError(t, err)
-		require.NoError(t, client.CloseSystemMetrics(ctx, "ID"))
+		require.NoError(t, client.CloseSystemMetrics(ctx, "ID", true))
 		assert.True(t, srv.close)
 
 		require.NoError(t, client.CloseClient())
-		require.NoError(t, client.CloseSystemMetrics(ctx, "ID"))
+		require.NoError(t, client.CloseSystemMetrics(ctx, "ID", true))
 		require.NoError(t, conn.Close())
 	})
 	t.Run("AlreadyClosed", func(t *testing.T) {
@@ -279,7 +279,7 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		id, err := s.CreateSystemMetricRecord(ctx, SystemMetricsOptions{
+		id, err := s.CreateSystemMetricsRecord(ctx, SystemMetricsOptions{
 			Project:     "project",
 			Version:     "version",
 			Variant:     "variant",
@@ -289,6 +289,7 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 			Mainline:    true,
 			Compression: CompressionTypeNone,
 			Schema:      SchemaTypeRawEvents,
+			Format:      DataFormatFTDC,
 		})
 		require.NoError(t, err)
 		assert.Equal(t, id, "ID")
@@ -305,6 +306,7 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 			Artifact: &internal.SystemMetricsArtifactInfo{
 				Compression: internal.CompressionType(CompressionTypeNone),
 				Schema:      internal.SchemaType(SchemaTypeRawEvents),
+				Format:      internal.DataFormat(DataFormatFTDC),
 			},
 		}, mc.info)
 	})
@@ -313,7 +315,7 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		id, err := s.CreateSystemMetricRecord(ctx, SystemMetricsOptions{
+		id, err := s.CreateSystemMetricsRecord(ctx, SystemMetricsOptions{
 			Project:     "project",
 			Version:     "version",
 			Variant:     "variant",
@@ -327,7 +329,7 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 		require.Error(t, err)
 		assert.Equal(t, id, "")
 		assert.Nil(t, mc.data)
-		id, err = s.CreateSystemMetricRecord(ctx, SystemMetricsOptions{
+		id, err = s.CreateSystemMetricsRecord(ctx, SystemMetricsOptions{
 			Project:     "project",
 			Version:     "version",
 			Variant:     "variant",
@@ -349,7 +351,7 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		id, err := s.CreateSystemMetricRecord(ctx, SystemMetricsOptions{
+		id, err := s.CreateSystemMetricsRecord(ctx, SystemMetricsOptions{
 			Project:     "project",
 			Version:     "version",
 			Variant:     "variant",
@@ -359,6 +361,7 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 			Mainline:    true,
 			Compression: CompressionTypeNone,
 			Schema:      SchemaTypeRawEvents,
+			Format:      DataFormatFTDC,
 		})
 		require.Error(t, err)
 		assert.Equal(t, id, "")
@@ -805,9 +808,10 @@ func TestCloseSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		require.NoError(t, s.CloseSystemMetrics(ctx, "ID"))
+		require.NoError(t, s.CloseSystemMetrics(ctx, "ID", true))
 		assert.Equal(t, &internal.SystemMetricsSeriesEnd{
-			Id: "ID",
+			Id:      "ID",
+			Success: true,
 		}, mc.close)
 	})
 	t.Run("InvalidOptions", func(t *testing.T) {
@@ -815,7 +819,7 @@ func TestCloseSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		require.Error(t, s.CloseSystemMetrics(ctx, ""))
+		require.Error(t, s.CloseSystemMetrics(ctx, "", true))
 		assert.Nil(t, mc.data)
 	})
 	t.Run("RPCError", func(t *testing.T) {
@@ -825,7 +829,7 @@ func TestCloseSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		require.Error(t, s.CloseSystemMetrics(ctx, "ID"))
+		require.Error(t, s.CloseSystemMetrics(ctx, "ID", true))
 		assert.Nil(t, mc.data)
 	})
 }
