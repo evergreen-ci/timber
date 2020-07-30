@@ -187,7 +187,7 @@ func (s *SystemMetricsClient) CreateSystemMetricsRecord(ctx context.Context, opt
 	return resp.Id, nil
 }
 
-// MetricDataOpts describe the data being streamed or sent to cedar
+// MetricDataOpts describes the data being streamed or sent to cedar.
 type MetricDataOpts struct {
 	Id         string
 	MetricType string
