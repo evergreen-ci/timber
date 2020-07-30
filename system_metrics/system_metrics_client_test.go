@@ -289,7 +289,6 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 			Mainline:    true,
 			Compression: CompressionTypeNone,
 			Schema:      SchemaTypeRawEvents,
-			Format:      DataFormatFTDC,
 		})
 		require.NoError(t, err)
 		assert.Equal(t, id, "ID")
@@ -306,7 +305,6 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 			Artifact: &internal.SystemMetricsArtifactInfo{
 				Compression: internal.CompressionType(CompressionTypeNone),
 				Schema:      internal.SchemaType(SchemaTypeRawEvents),
-				Format:      internal.DataFormat(DataFormatFTDC),
 			},
 		}, mc.info)
 	})
@@ -361,7 +359,6 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 			Mainline:    true,
 			Compression: CompressionTypeNone,
 			Schema:      SchemaTypeRawEvents,
-			Format:      DataFormatFTDC,
 		})
 		require.Error(t, err)
 		assert.Equal(t, id, "")
@@ -371,16 +368,22 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 
 func TestAddSystemMetrics(t *testing.T) {
 	ctx := context.Background()
+	dataOpts := MetricDataOpts{
+		Id:         "ID",
+		MetricType: "Test",
+		Format:     DataFormatFTDC,
+	}
 	t.Run("ValidOptions", func(t *testing.T) {
 		mc := &mockClient{}
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		require.NoError(t, s.AddSystemMetrics(ctx, "ID", "Test", []byte("Test byte string")))
+		require.NoError(t, s.AddSystemMetrics(ctx, dataOpts, []byte("Test byte string")))
 		assert.Equal(t, &internal.SystemMetricsData{
-			Id:   "ID",
-			Type: "Test",
-			Data: []byte("Test byte string"),
+			Id:     "ID",
+			Type:   "Test",
+			Format: internal.DataFormat(DataFormatFTDC),
+			Data:   []byte("Test byte string"),
 		}, mc.data)
 	})
 	t.Run("InvalidOptions", func(t *testing.T) {
@@ -388,11 +391,25 @@ func TestAddSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		require.Error(t, s.AddSystemMetrics(ctx, "", "Test", []byte("Test byte string")))
+		require.Error(t, s.AddSystemMetrics(ctx, MetricDataOpts{
+			Id:         "",
+			MetricType: "Test",
+			Format:     DataFormatFTDC,
+		}, []byte("Test byte string")))
 		assert.Nil(t, mc.data)
-		require.Error(t, s.AddSystemMetrics(ctx, "ID", "", []byte("Test byte string")))
+		require.Error(t, s.AddSystemMetrics(ctx, MetricDataOpts{
+			Id:         "Id",
+			MetricType: "",
+			Format:     DataFormatFTDC,
+		}, []byte("Test byte string")))
 		assert.Nil(t, mc.data)
-		require.Error(t, s.AddSystemMetrics(ctx, "ID", "Test", []byte{}))
+		require.Error(t, s.AddSystemMetrics(ctx, MetricDataOpts{
+			Id:         "Id",
+			MetricType: "Test",
+			Format:     7,
+		}, []byte("Test byte string")))
+		assert.Nil(t, mc.data)
+		require.Error(t, s.AddSystemMetrics(ctx, dataOpts, []byte{}))
 		assert.Nil(t, mc.data)
 	})
 	t.Run("RPCError", func(t *testing.T) {
@@ -402,19 +419,24 @@ func TestAddSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		require.Error(t, s.AddSystemMetrics(ctx, "ID", "Test", []byte("Test byte string")))
+		require.Error(t, s.AddSystemMetrics(ctx, dataOpts, []byte("Test byte string")))
 		assert.Nil(t, mc.data)
 	})
 }
 
 func TestStreamSystemMetrics(t *testing.T) {
 	ctx := context.Background()
-	t.Run("ValidStreamOpts", func(t *testing.T) {
+	dataOpts := MetricDataOpts{
+		Id:         "ID",
+		MetricType: "Test",
+		Format:     DataFormatFTDC,
+	}
+	t.Run("ValidOpts", func(t *testing.T) {
 		mc := &mockClient{}
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			FlushInterval: time.Second,
 			MaxBufferSize: 1e5,
 		})
@@ -423,8 +445,9 @@ func TestStreamSystemMetrics(t *testing.T) {
 		assert.NotNil(t, stream.ctx)
 		assert.NotNil(t, stream.cancel)
 		assert.NotNil(t, stream.catcher)
-		assert.Equal(t, "ID", stream.id)
-		assert.Equal(t, "Test", stream.metricType)
+		assert.Equal(t, "ID", stream.opts.Id)
+		assert.Equal(t, "Test", stream.opts.MetricType)
+		assert.Equal(t, DataFormatFTDC, stream.opts.Format)
 		assert.Equal(t, mc.stream, stream.stream)
 		assert.NotNil(t, stream.buffer)
 		assert.Equal(t, int(1e5), stream.maxBufferSize)
@@ -443,14 +466,15 @@ func TestStreamSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{})
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{})
 		require.NoError(t, err)
 		stream.mu.Lock()
 		assert.NotNil(t, stream.ctx)
 		assert.NotNil(t, stream.cancel)
 		assert.NotNil(t, stream.catcher)
-		assert.Equal(t, "ID", stream.id)
-		assert.Equal(t, "Test", stream.metricType)
+		assert.Equal(t, "ID", stream.opts.Id)
+		assert.Equal(t, "Test", stream.opts.MetricType)
+		assert.Equal(t, DataFormatFTDC, stream.opts.Format)
 		assert.Equal(t, mc.stream, stream.stream)
 		assert.NotNil(t, stream.buffer)
 		assert.Equal(t, defaultMaxBufferSize, stream.maxBufferSize)
@@ -469,15 +493,16 @@ func TestStreamSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			NoTimedFlush: true,
 		})
 		require.NoError(t, err)
 		assert.NotNil(t, stream.ctx)
 		assert.NotNil(t, stream.cancel)
 		assert.NotNil(t, stream.catcher)
-		assert.Equal(t, "ID", stream.id)
-		assert.Equal(t, "Test", stream.metricType)
+		assert.Equal(t, "ID", stream.opts.Id)
+		assert.Equal(t, "Test", stream.opts.MetricType)
+		assert.Equal(t, DataFormatFTDC, stream.opts.Format)
 		assert.Equal(t, mc.stream, stream.stream)
 		assert.NotNil(t, stream.buffer)
 		assert.Equal(t, defaultMaxBufferSize, stream.maxBufferSize)
@@ -493,20 +518,41 @@ func TestStreamSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "", "Test", StreamOpts{})
-		require.Error(t, err)
-		assert.Nil(t, stream)
-		stream, err = s.StreamSystemMetrics(ctx, "ID", "", StreamOpts{})
-		require.Error(t, err)
-		assert.Nil(t, stream)
-		stream, err = s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			MaxBufferSize: -1,
 		})
 		require.Error(t, err)
 		assert.Nil(t, stream)
-		stream, err = s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err = s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			FlushInterval: -1,
 		})
+		require.Error(t, err)
+		assert.Nil(t, stream)
+	})
+	t.Run("InvalidDataOpts", func(t *testing.T) {
+		mc := &mockClient{}
+		s := SystemMetricsClient{
+			client: mc,
+		}
+		stream, err := s.StreamSystemMetrics(ctx, MetricDataOpts{
+			Id:         "",
+			MetricType: "Test",
+			Format:     DataFormatFTDC,
+		}, StreamOpts{})
+		require.Error(t, err)
+		assert.Nil(t, stream)
+		stream, err = s.StreamSystemMetrics(ctx, MetricDataOpts{
+			Id:         "ID",
+			MetricType: "",
+			Format:     DataFormatFTDC,
+		}, StreamOpts{})
+		require.Error(t, err)
+		assert.Nil(t, stream)
+		stream, err = s.StreamSystemMetrics(ctx, MetricDataOpts{
+			Id:         "ID",
+			MetricType: "Test",
+			Format:     7,
+		}, StreamOpts{})
 		require.Error(t, err)
 		assert.Nil(t, stream)
 	})
@@ -517,7 +563,7 @@ func TestStreamSystemMetrics(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{})
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{})
 		require.Error(t, err)
 		assert.Nil(t, stream)
 	})
@@ -525,12 +571,17 @@ func TestStreamSystemMetrics(t *testing.T) {
 
 func TestStreamWrite(t *testing.T) {
 	ctx := context.Background()
+	dataOpts := MetricDataOpts{
+		Id:         "ID",
+		MetricType: "Test",
+		Format:     DataFormatFTDC,
+	}
 	t.Run("UnderBufferSize", func(t *testing.T) {
 		mc := &mockClient{}
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			NoTimedFlush: true,
 		})
 		require.NoError(t, err)
@@ -548,7 +599,7 @@ func TestStreamWrite(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			NoTimedFlush:  true,
 			MaxBufferSize: 1,
 		})
@@ -572,7 +623,7 @@ func TestStreamWrite(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			NoTimedFlush: true,
 		})
 		require.NoError(t, err)
@@ -594,7 +645,7 @@ func TestStreamWrite(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			NoTimedFlush: true,
 		})
 		require.NoError(t, err)
@@ -609,7 +660,7 @@ func TestStreamWrite(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			NoTimedFlush: true,
 		})
 		require.NoError(t, err)
@@ -625,7 +676,7 @@ func TestStreamWrite(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			NoTimedFlush:  true,
 			MaxBufferSize: 1,
 		})
@@ -639,12 +690,17 @@ func TestStreamWrite(t *testing.T) {
 
 func TestStreamTimedFlush(t *testing.T) {
 	ctx := context.Background()
+	dataOpts := MetricDataOpts{
+		Id:         "ID",
+		MetricType: "Test",
+		Format:     DataFormatFTDC,
+	}
 	t.Run("ValidOutput", func(t *testing.T) {
 		mc := &mockClient{}
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			FlushInterval: time.Second,
 		})
 		require.NoError(t, err)
@@ -669,7 +725,7 @@ func TestStreamTimedFlush(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			FlushInterval: time.Second,
 		})
 		require.NoError(t, err)
@@ -695,7 +751,7 @@ func TestStreamTimedFlush(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			MaxBufferSize: 1,
 		})
 		require.NoError(t, err)
@@ -716,7 +772,7 @@ func TestStreamTimedFlush(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			FlushInterval: time.Second,
 		})
 		require.NoError(t, err)
@@ -738,12 +794,17 @@ func TestStreamTimedFlush(t *testing.T) {
 
 func TestStreamClose(t *testing.T) {
 	ctx := context.Background()
+	dataOpts := MetricDataOpts{
+		Id:         "ID",
+		MetricType: "Test",
+		Format:     DataFormatFTDC,
+	}
 	t.Run("NoError", func(t *testing.T) {
 		mc := &mockClient{}
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			NoTimedFlush: true,
 		})
 		require.NoError(t, err)
@@ -762,7 +823,7 @@ func TestStreamClose(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			NoTimedFlush: true,
 		})
 		require.NoError(t, err)
@@ -775,7 +836,7 @@ func TestStreamClose(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			FlushInterval: time.Second,
 		})
 		require.NoError(t, err)
@@ -792,7 +853,7 @@ func TestStreamClose(t *testing.T) {
 		s := SystemMetricsClient{
 			client: mc,
 		}
-		stream, err := s.StreamSystemMetrics(ctx, "ID", "Test", StreamOpts{
+		stream, err := s.StreamSystemMetrics(ctx, dataOpts, StreamOpts{
 			NoTimedFlush: true,
 		})
 		require.NoError(t, err)
