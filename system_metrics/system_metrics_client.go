@@ -167,7 +167,6 @@ type SystemMetricsOptions struct {
 	// Data storage information for this object
 	Compression CompressionType `bson:"compression" json:"compression" yaml:"compression"`
 	Schema      SchemaType      `bson:"schema" json:"schema" yaml:"schema"`
-	Format      DataFormat      `bson:"format" json:"format" yaml:"format"`
 }
 
 // CreateSystemMetricsRecord creates a system metrics metadata object in cedar with
@@ -188,23 +187,42 @@ func (s *SystemMetricsClient) CreateSystemMetricsRecord(ctx context.Context, opt
 	return resp.Id, nil
 }
 
-// AddSystemMetrics sends the given byte slice to the cedar backend for the
-// system metrics object with the corresponding id.
-func (s *SystemMetricsClient) AddSystemMetrics(ctx context.Context, id, metricType string, data []byte) error {
-	if id == "" {
+// MetricDataOpts describe the data being streamed or sent to cedar
+type MetricDataOpts struct {
+	Id         string
+	MetricType string
+	Format     DataFormat
+}
+
+func (s *MetricDataOpts) validate() error {
+	if s.Id == "" {
 		return errors.New("must specify id of system metrics object")
 	}
-	if metricType == "" {
+	if s.MetricType == "" {
 		return errors.New("must specify the the type of metric in data")
 	}
+	if err := s.Format.validate(); err != nil {
+		return errors.Wrapf(err, "invalid format for id %s", s.Id)
+	}
+	return nil
+}
+
+// AddSystemMetrics sends the given byte slice to the cedar backend for the
+// system metrics object with the corresponding id.
+func (s *SystemMetricsClient) AddSystemMetrics(ctx context.Context, opts MetricDataOpts, data []byte) error {
+	if err := opts.validate(); err != nil {
+		return errors.Wrapf(err, "invalid system metrics options")
+	}
+
 	if len(data) == 0 {
 		return errors.New("must provide data to send")
 	}
 
 	_, err := s.client.AddSystemMetrics(ctx, &internal.SystemMetricsData{
-		Id:   id,
-		Type: metricType,
-		Data: data,
+		Id:     opts.Id,
+		Type:   opts.MetricType,
+		Format: internal.DataFormat(opts.Format),
+		Data:   data,
 	})
 	return err
 }
@@ -216,8 +234,7 @@ type SystemMetricsWriteCloser struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	catcher       grip.Catcher
-	id            string
-	metricType    string
+	opts          MetricDataOpts
 	stream        internal.CedarSystemMetrics_StreamSystemMetricsClient
 	buffer        []byte
 	maxBufferSize int
@@ -275,13 +292,14 @@ func (s *SystemMetricsWriteCloser) Close() error {
 
 func (s *SystemMetricsWriteCloser) flush() error {
 	data := &internal.SystemMetricsData{
-		Id:   s.id,
-		Type: s.metricType,
-		Data: s.buffer,
+		Id:     s.opts.Id,
+		Type:   s.opts.MetricType,
+		Format: internal.DataFormat(s.opts.Format),
+		Data:   s.buffer,
 	}
 
 	if err := s.stream.Send(data); err != nil {
-		return errors.Wrapf(err, "problem sending data for id %s", s.id)
+		return errors.Wrapf(err, "problem sending data for id %s", s.opts.Id)
 	}
 
 	s.buffer = []byte{}
@@ -320,7 +338,7 @@ func (s *SystemMetricsWriteCloser) timedFlush() {
 				defer s.mu.Unlock()
 				if len(s.buffer) > 0 && time.Since(s.lastFlush) >= s.flushInterval {
 					if err := s.flush(); err != nil {
-						s.catcher.Add(errors.Wrapf(err, "problem with timed flush for id %s", s.id))
+						s.catcher.Add(errors.Wrapf(err, "problem with timed flush for id %s", s.opts.Id))
 						s.catcher.Add(s.close())
 					}
 				}
@@ -358,21 +376,17 @@ func (s *StreamOpts) validate() error {
 
 // StreamSystemMetrics returns a buffered WriteCloser that can be used to stream system
 // metrics data to cedar.
-func (s *SystemMetricsClient) StreamSystemMetrics(ctx context.Context, id, metricType string, opts StreamOpts) (*SystemMetricsWriteCloser, error) {
-	if id == "" {
-		return nil, errors.New("must specify id of system metrics object")
+func (s *SystemMetricsClient) StreamSystemMetrics(ctx context.Context, dataOpts MetricDataOpts, streamOpts StreamOpts) (*SystemMetricsWriteCloser, error) {
+	if err := dataOpts.validate(); err != nil {
+		return nil, errors.Wrapf(err, "invalid system metrics data options")
 	}
-	if metricType == "" {
-		return nil, errors.New("must specify type of metric data")
-	}
-
-	if err := opts.validate(); err != nil {
-		return nil, errors.Wrapf(err, "invalid stream options for id %s", id)
+	if err := streamOpts.validate(); err != nil {
+		return nil, errors.Wrapf(err, "invalid stream options for id %s", dataOpts.Id)
 	}
 
 	stream, err := s.client.StreamSystemMetrics(ctx)
 	if err != nil {
-		return nil, errors.Wrapf(err, "problem starting stream for %s", id)
+		return nil, errors.Wrapf(err, "problem starting stream for %s", dataOpts.Id)
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -380,16 +394,15 @@ func (s *SystemMetricsClient) StreamSystemMetrics(ctx context.Context, id, metri
 		ctx:           ctx,
 		cancel:        cancel,
 		catcher:       grip.NewBasicCatcher(),
-		id:            id,
-		metricType:    metricType,
+		opts:          dataOpts,
 		stream:        stream,
 		buffer:        []byte{},
-		maxBufferSize: opts.MaxBufferSize,
+		maxBufferSize: streamOpts.MaxBufferSize,
 	}
 
-	if !opts.NoTimedFlush {
+	if !streamOpts.NoTimedFlush {
 		writer.lastFlush = time.Now()
-		writer.flushInterval = opts.FlushInterval
+		writer.flushInterval = streamOpts.FlushInterval
 		go writer.timedFlush()
 	}
 	return writer, nil
@@ -433,7 +446,6 @@ func createSystemMetrics(opts SystemMetricsOptions) *internal.SystemMetrics {
 		Artifact: &internal.SystemMetricsArtifactInfo{
 			Compression: internal.CompressionType(opts.Compression),
 			Schema:      internal.SchemaType(opts.Schema),
-			Format:      internal.DataFormat(opts.Format),
 		},
 	}
 }
