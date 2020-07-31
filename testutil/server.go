@@ -76,10 +76,10 @@ func (ms *MockMetricsServer) StreamSystemMetrics(stream internal.CedarSystemMetr
 			return fmt.Errorf("chunk id %s doesn't match id %s", chunk.Id, id)
 		}
 
-		ms.Stream = true
 		if ms.StreamErr {
 			return errors.New("error in stream")
 		}
+		ms.Stream = true
 		return nil
 	}
 }
