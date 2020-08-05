@@ -106,14 +106,38 @@ func (ms *MockMetricsServer) Address() string {
 func NewMockMetricsServer(ctx context.Context, basePort int) (*MockMetricsServer, error) {
 	srv := &MockMetricsServer{}
 	port := GetPortNumber(basePort)
-	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", port))
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
 
 	srv.DialOpts = timber.DialCedarOptions{
 		BaseAddress: "localhost",
 		RPCPort:     strconv.Itoa(port),
+	}
+
+	lis, err := net.Listen("tcp", srv.Address())
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	s := grpc.NewServer()
+	internal.RegisterCedarSystemMetricsServer(s, srv)
+
+	go func() {
+		_ = s.Serve(lis)
+	}()
+	go func() {
+		<-ctx.Done()
+		s.Stop()
+	}()
+	return srv, nil
+}
+
+// NewMockMetricsServerForDialOpts will return a new MockMetricsServer listening
+// on the port and url from the specified dial options
+func NewMockMetricsServerWithAddress(ctx context.Context, opts timber.DialCedarOptions) (*MockMetricsServer, error) {
+	srv := &MockMetricsServer{}
+	srv.DialOpts = opts
+	lis, err := net.Listen("tcp", srv.Address())
+	if err != nil {
+		return nil, errors.WithStack(err)
 	}
 
 	s := grpc.NewServer()
