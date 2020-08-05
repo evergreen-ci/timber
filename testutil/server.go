@@ -38,6 +38,7 @@ func (ms *MockMetricsServer) CreateSystemMetricsRecord(_ context.Context, in *in
 	if ms.CreateErr {
 		return nil, errors.New("create error")
 	}
+	ms.Create = in
 	return &internal.SystemMetricsResponse{
 		Id: "ID",
 	}, nil
@@ -96,7 +97,6 @@ func (ms *MockMetricsServer) StreamSystemMetrics(stream internal.CedarSystemMetr
 		}
 		ms.StreamData[chunk.Type] = append(ms.StreamData[chunk.Type], chunk)
 		ms.Mu.Unlock()
-		return nil
 	}
 }
 
@@ -149,9 +149,9 @@ func NewMockMetricsServer(ctx context.Context, basePort int) (*MockMetricsServer
 	return srv, nil
 }
 
-// NewMockMetricsServerForDialOpts will return a new MockMetricsServer listening
+// NewMockMetricsServerWithDialOpts will return a new MockMetricsServer listening
 // on the port and url from the specified dial options
-func NewMockMetricsServerWithAddress(ctx context.Context, opts timber.DialCedarOptions) (*MockMetricsServer, error) {
+func NewMockMetricsServerWithDialOpts(ctx context.Context, opts timber.DialCedarOptions) (*MockMetricsServer, error) {
 	srv := &MockMetricsServer{}
 	srv.DialOpts = opts
 	lis, err := net.Listen("tcp", srv.Address())
