@@ -74,6 +74,7 @@ compile $(buildDir):
 	$(gobin) build $(subst $(name),,$(subst -,/,$(foreach target,$(packages),./$(target))))
 # test execution and output handlers
 $(buildDir)/output.%.test: .FORCE
+	echo GO ENV VARS: $(GOPATH) $(GOROOT) $(gobin)
 	$(gobin) test $(testArgs) ./$(if $(subst $(name),,$*),$(subst -,/,$*),) | tee $@
 	@!( grep -s -q "^FAIL" $@ && grep -s -q "^WARNING: DATA RACE" $@)
 	@(grep -s -q "^PASS" $@ || grep -s -q "no test files" $@)
