@@ -184,6 +184,7 @@ buildvariants:
       DISABLE_COVERAGE: true
       GOROOT: C:/golang/go1.9
       GOBIN: /cygdrive/c/golang/go1.9/bin/go
+      USERPROFILE: C:/Users/Administrator
       mongodb_url: https://fastdl.mongodb.org/win32/mongodb-win32-x86_64-2008plus-ssl-4.0.1.zip
       extension: ".exe"
       archiveExt: ".zip"
