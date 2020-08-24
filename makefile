@@ -79,7 +79,7 @@ $(buildDir)/output.%.test: .FORCE
 	@(grep -s -q "^PASS" $@ || grep -s -q "no test files" $@)
 #  targets to process and generate coverage reports
 $(buildDir)/output.%.coverage:.FORCE
-	$(gobin) test $(testArgs) ./$(if $(subst $(name),,$*),$*,) -covermode=count -coverprofile $@ | tee $(buildDir)/output.$*.test
+	$(gobin) test $(testArgs) ./$(if $(subst $(name),,$*),$(subst -,/,$*),) -covermode=count -coverprofile $@ | tee $(buildDir)/output.$*.test
 	@-[ -f $@ ] && $(gobin) tool cover -func=$@ | sed 's%$(projectPath)/%%' | column -t
 $(buildDir)/output.%.coverage.html:$(buildDir)/output.%.coverage
 	$(gobin) tool cover -html=$< -o $@
@@ -140,7 +140,7 @@ vendor-clean:
 # convenience targets for runing tests and coverage tasks on a
 # specific package.
 test-%:$(buildDir)/output.%.test
-	@grep -s -q -e "^PASS" $<
+	
 coverage-%:$(buildDir)/output.%.coverage
 	@grep -s -q -e "^PASS" $(buildDir)/output.$*.test
 html-coverage-%:$(buildDir)/output.%.coverage.html
