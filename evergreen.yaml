@@ -139,7 +139,6 @@ buildvariants:
   - name: coverage
     display_name: Coverage (Arch Linux)
     expansions:
-      DISABLE_COVERAGE: true
       GO_BIN_PATH: /opt/golang/go1.13/bin/go
       GOROOT: /opt/golang/go1.13
       mongodb_url: http://fastdl.mongodb.org/linux/mongodb-linux-x86_64-4.0.1.tgz
