@@ -182,8 +182,8 @@ buildvariants:
       - windows-64-vs2015-small
     expansions:
       DISABLE_COVERAGE: true
-      GOROOT: C:/golang/go1.14
-      GO_BIN_PATH: /cygdrive/c/golang/go1.14/bin/go
+      GOROOT: C:/golang/go1.13
+      GO_BIN_PATH: /cygdrive/c/golang/go1.13/bin/go
       mongodb_url: https://fastdl.mongodb.org/win32/mongodb-win32-x86_64-2008plus-ssl-4.0.1.zip
       extension: ".exe"
       archiveExt: ".zip"
