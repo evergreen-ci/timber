@@ -295,7 +295,7 @@ func TestSystemMetricsWriteCloserClose(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		w.Write([]byte("some data"))
+		require.NoError(t, w.Write([]byte("some data")))
 		assert.Error(t, w.Close())
 	})
 }
