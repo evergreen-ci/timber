@@ -93,7 +93,7 @@ func TestSystemMetricsWriteCloserWrite(t *testing.T) {
 		require.NoError(t, w.Close())
 
 		n, err := w.Write([]byte("small test string"))
-		require.Error(t, err)
+		assert.Error(t, err)
 		assert.Equal(t, 0, n)
 	})
 	t.Run("NoData", func(t *testing.T) {
@@ -121,7 +121,7 @@ func TestSystemMetricsWriteCloserWrite(t *testing.T) {
 		require.NoError(t, err)
 
 		n, err := w.Write([]byte("small test string"))
-		require.Error(t, err)
+		assert.Error(t, err)
 		assert.Equal(t, 0, n)
 	})
 }
@@ -222,7 +222,7 @@ func TestSystemMetricsWriteCloserTimedFlush(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, strings.HasPrefix(err.Error(), "writer already closed due to error"))
 		err = w.Close()
-		require.Error(t, err)
+		assert.Error(t, err)
 		assert.True(t, strings.HasPrefix(err.Error(), "writer already closed due to error"))
 		raw.mu.Lock()
 		assert.True(t, raw.closed)

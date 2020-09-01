@@ -78,8 +78,8 @@ func TestNewSystemMetricsClient(t *testing.T) {
 	t.Run("InvalidOptions", func(t *testing.T) {
 		connOpts := ConnectionOptions{}
 		client, err := NewSystemMetricsClient(ctx, connOpts)
-		require.Error(t, err)
-		require.Nil(t, client)
+		assert.Error(t, err)
+		assert.Nil(t, client)
 	})
 }
 
@@ -102,8 +102,8 @@ func TestNewSystemMetricsClientWithExistingClient(t *testing.T) {
 	})
 	t.Run("InvalidOptions", func(t *testing.T) {
 		client, err := NewSystemMetricsClientWithExistingConnection(ctx, nil)
-		require.Error(t, err)
-		require.Nil(t, client)
+		assert.Error(t, err)
+		assert.Nil(t, client)
 	})
 }
 
@@ -126,7 +126,7 @@ func TestCloseClient(t *testing.T) {
 		srv.Mu.Unlock()
 
 		require.NoError(t, client.CloseClient())
-		require.Error(t, client.CloseSystemMetrics(ctx, "ID", true))
+		assert.Error(t, client.CloseSystemMetrics(ctx, "ID", true))
 	})
 	t.Run("WithExistingConnection", func(t *testing.T) {
 		conn, err := grpc.DialContext(ctx, srv.Address(), grpc.WithInsecure())
@@ -151,7 +151,7 @@ func TestCloseClient(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, client.CloseClient())
 
-		require.Error(t, client.CloseClient())
+		assert.Error(t, client.CloseClient())
 	})
 }
 
@@ -205,9 +205,10 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 			Compression: 6,
 			Schema:      SchemaTypeRawEvents,
 		})
-		require.Error(t, err)
+		assert.Error(t, err)
 		assert.Equal(t, id, "")
 		assert.Nil(t, mc.data)
+
 		id, err = s.CreateSystemMetricsRecord(ctx, SystemMetricsOptions{
 			Project:     "project",
 			Version:     "version",
@@ -219,7 +220,7 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 			Compression: CompressionTypeNone,
 			Schema:      6,
 		})
-		require.Error(t, err)
+		assert.Error(t, err)
 		assert.Equal(t, id, "")
 		assert.Nil(t, mc.data)
 	})
@@ -238,7 +239,7 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 			Compression: CompressionTypeNone,
 			Schema:      SchemaTypeRawEvents,
 		})
-		require.Error(t, err)
+		assert.Error(t, err)
 		assert.Equal(t, id, "")
 		assert.Nil(t, mc.data)
 	})
@@ -267,32 +268,35 @@ func TestAddSystemMetrics(t *testing.T) {
 		mc := &mockClient{}
 		s := &SystemMetricsClient{client: mc}
 
-		require.Error(t, s.AddSystemMetrics(ctx, MetricDataOptions{
+		assert.Error(t, s.AddSystemMetrics(ctx, MetricDataOptions{
 			Id:         "",
 			MetricType: "Test",
 			Format:     DataFormatFTDC,
 		}, []byte("Test byte string")))
 		assert.Nil(t, mc.data)
-		require.Error(t, s.AddSystemMetrics(ctx, MetricDataOptions{
+
+		assert.Error(t, s.AddSystemMetrics(ctx, MetricDataOptions{
 			Id:         "Id",
 			MetricType: "",
 			Format:     DataFormatFTDC,
 		}, []byte("Test byte string")))
 		assert.Nil(t, mc.data)
-		require.Error(t, s.AddSystemMetrics(ctx, MetricDataOptions{
+
+		assert.Error(t, s.AddSystemMetrics(ctx, MetricDataOptions{
 			Id:         "Id",
 			MetricType: "Test",
 			Format:     7,
 		}, []byte("Test byte string")))
 		assert.Nil(t, mc.data)
-		require.Error(t, s.AddSystemMetrics(ctx, dataOpts, []byte{}))
+
+		assert.Error(t, s.AddSystemMetrics(ctx, dataOpts, []byte{}))
 		assert.Nil(t, mc.data)
 	})
 	t.Run("RPCError", func(t *testing.T) {
 		mc := &mockClient{addErr: true}
 		s := &SystemMetricsClient{client: mc}
 
-		require.Error(t, s.AddSystemMetrics(ctx, dataOpts, []byte("Test byte string")))
+		assert.Error(t, s.AddSystemMetrics(ctx, dataOpts, []byte("Test byte string")))
 		assert.Nil(t, mc.data)
 	})
 }
@@ -334,7 +338,7 @@ func TestNewSystemMetricsWriteCloser(t *testing.T) {
 		assert.Equal(t, time.Second, raw.flushInterval)
 		assert.False(t, raw.closed)
 		raw.mu.Unlock()
-		require.NoError(t, w.Close())
+		assert.NoError(t, w.Close())
 	})
 	t.Run("DefaultWriteCloserOptions", func(t *testing.T) {
 		mc := &mockClient{}
@@ -363,7 +367,7 @@ func TestNewSystemMetricsWriteCloser(t *testing.T) {
 		assert.Equal(t, defaultFlushInterval, raw.flushInterval)
 		assert.False(t, raw.closed)
 		raw.mu.Unlock()
-		require.NoError(t, w.Close())
+		assert.NoError(t, w.Close())
 	})
 	t.Run("NoTimedFlush", func(t *testing.T) {
 		mc := &mockClient{}
@@ -390,7 +394,7 @@ func TestNewSystemMetricsWriteCloser(t *testing.T) {
 		assert.Nil(t, raw.timer)
 		assert.Equal(t, time.Duration(0), raw.flushInterval)
 		assert.False(t, raw.closed)
-		require.NoError(t, w.Close())
+		assert.NoError(t, w.Close())
 	})
 	t.Run("InvalidWriteCloserOptions", func(t *testing.T) {
 		mc := &mockClient{}
@@ -454,14 +458,14 @@ func TestCloseSystemMetrics(t *testing.T) {
 		mc := &mockClient{}
 		s := &SystemMetricsClient{client: mc}
 
-		require.Error(t, s.CloseSystemMetrics(ctx, "", true))
+		assert.Error(t, s.CloseSystemMetrics(ctx, "", true))
 		assert.Nil(t, mc.data)
 	})
 	t.Run("RPCError", func(t *testing.T) {
 		mc := &mockClient{closeErr: true}
 		s := &SystemMetricsClient{client: mc}
 
-		require.Error(t, s.CloseSystemMetrics(ctx, "ID", true))
+		assert.Error(t, s.CloseSystemMetrics(ctx, "ID", true))
 		assert.Nil(t, mc.data)
 	})
 }
