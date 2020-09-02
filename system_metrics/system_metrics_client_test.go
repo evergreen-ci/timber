@@ -62,6 +62,17 @@ func (mc *mockClient) CloseMetrics(_ context.Context, in *internal.SystemMetrics
 	}, nil
 }
 
+func (mc *mockClient) GetData() *internal.SystemMetricsData {
+	mc.mu.Lock()
+	defer mc.mu.Unlock()
+
+	if mc.data == nil {
+		return nil
+	}
+	ref := *mc.data
+	return &ref
+}
+
 func TestNewSystemMetricsClient(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -212,9 +223,7 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 		})
 		assert.Error(t, err)
 		assert.Equal(t, id, "")
-		mc.mu.Lock()
-		assert.Nil(t, mc.data)
-		mc.mu.Unlock()
+		assert.Nil(t, mc.GetData())
 
 		id, err = s.CreateSystemMetricsRecord(ctx, SystemMetricsOptions{
 			Project:     "project",
@@ -229,9 +238,7 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 		})
 		assert.Error(t, err)
 		assert.Equal(t, id, "")
-		mc.mu.Lock()
-		assert.Nil(t, mc.data)
-		mc.mu.Unlock()
+		assert.Nil(t, mc.GetData())
 	})
 	t.Run("RPCError", func(t *testing.T) {
 		mc := &mockClient{createErr: true}
@@ -250,9 +257,7 @@ func TestCreateSystemMetricsRecord(t *testing.T) {
 		})
 		assert.Error(t, err)
 		assert.Equal(t, id, "")
-		mc.mu.Lock()
-		assert.Nil(t, mc.data)
-		mc.mu.Unlock()
+		assert.Nil(t, mc.GetData())
 	})
 }
 
@@ -268,14 +273,12 @@ func TestAddSystemMetrics(t *testing.T) {
 		s := &SystemMetricsClient{client: mc}
 
 		require.NoError(t, s.AddSystemMetrics(ctx, dataOpts, []byte("Test byte string")))
-		mc.mu.Lock()
 		assert.Equal(t, &internal.SystemMetricsData{
 			Id:     "ID",
 			Type:   "Test",
 			Format: internal.DataFormat(DataFormatFTDC),
 			Data:   []byte("Test byte string"),
-		}, mc.data)
-		mc.mu.Unlock()
+		}, mc.GetData())
 	})
 	t.Run("InvalidOptions", func(t *testing.T) {
 		mc := &mockClient{}
@@ -286,41 +289,31 @@ func TestAddSystemMetrics(t *testing.T) {
 			MetricType: "Test",
 			Format:     DataFormatFTDC,
 		}, []byte("Test byte string")))
-		mc.mu.Lock()
-		assert.Nil(t, mc.data)
-		mc.mu.Unlock()
+		assert.Nil(t, mc.GetData())
 
 		assert.Error(t, s.AddSystemMetrics(ctx, MetricDataOptions{
 			Id:         "Id",
 			MetricType: "",
 			Format:     DataFormatFTDC,
 		}, []byte("Test byte string")))
-		mc.mu.Lock()
-		assert.Nil(t, mc.data)
-		mc.mu.Unlock()
+		assert.Nil(t, mc.GetData())
 
 		assert.Error(t, s.AddSystemMetrics(ctx, MetricDataOptions{
 			Id:         "Id",
 			MetricType: "Test",
 			Format:     7,
 		}, []byte("Test byte string")))
-		mc.mu.Lock()
-		assert.Nil(t, mc.data)
-		mc.mu.Unlock()
+		assert.Nil(t, mc.GetData())
 
 		assert.Error(t, s.AddSystemMetrics(ctx, dataOpts, []byte{}))
-		mc.mu.Lock()
-		assert.Nil(t, mc.data)
-		mc.mu.Unlock()
+		assert.Nil(t, mc.GetData())
 	})
 	t.Run("RPCError", func(t *testing.T) {
 		mc := &mockClient{addErr: true}
 		s := &SystemMetricsClient{client: mc}
 
 		assert.Error(t, s.AddSystemMetrics(ctx, dataOpts, []byte("Test byte string")))
-		mc.mu.Lock()
-		assert.Nil(t, mc.data)
-		mc.mu.Unlock()
+		assert.Nil(t, mc.GetData())
 	})
 }
 
@@ -482,17 +475,13 @@ func TestCloseSystemMetrics(t *testing.T) {
 		s := &SystemMetricsClient{client: mc}
 
 		assert.Error(t, s.CloseSystemMetrics(ctx, "", true))
-		mc.mu.Lock()
-		assert.Nil(t, mc.data)
-		mc.mu.Unlock()
+		assert.Nil(t, mc.GetData())
 	})
 	t.Run("RPCError", func(t *testing.T) {
 		mc := &mockClient{closeErr: true}
 		s := &SystemMetricsClient{client: mc}
 
 		assert.Error(t, s.CloseSystemMetrics(ctx, "ID", true))
-		mc.mu.Lock()
-		assert.Nil(t, mc.data)
-		mc.mu.Unlock()
+		assert.Nil(t, mc.GetData())
 	})
 }
