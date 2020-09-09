@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/http"
 	"time"
 
 	"github.com/evergreen-ci/timber"
@@ -81,41 +80,22 @@ func (f DataFormat) validate() error {
 	}
 }
 
-// SystemMetricsClient provides a wrapper around the grpc client for sending
+// SystemMetricsClient provides a wrapper around the gRPC client for sending
 // system metrics data to cedar.
 type SystemMetricsClient struct {
 	client     internal.CedarSystemMetricsClient
 	clientConn *grpc.ClientConn
 }
 
-// ConnectionOptions contains the options needed to create a grpc connection
-// with cedar.
-type ConnectionOptions struct {
-	DialOpts timber.DialCedarOptions
-	Client   http.Client
-}
-
-func (opts ConnectionOptions) validate() error {
-	hasAuth := opts.DialOpts.Username != "" && (opts.DialOpts.APIKey != "" || opts.DialOpts.Password != "")
-	if (opts.DialOpts.BaseAddress == "" && opts.DialOpts.RPCPort != "") ||
-		(opts.DialOpts.BaseAddress != "" && opts.DialOpts.RPCPort == "") {
-		return errors.New("must provide both base address and rpc port or neither")
-	}
-	if !hasAuth && opts.DialOpts.BaseAddress == "" {
-		return errors.New("must specify username and api key/password, or address and port for an insecure connection")
-	}
-	return nil
-}
-
 // NewSystemMetricsClient returns a SystemMetricsClient to send system metrics
 // data to cedar. If authentication credentials (username and apikey) are not
 // specified, then an insecure connection will be established with the
 // specified address and port.
-func NewSystemMetricsClient(ctx context.Context, opts ConnectionOptions) (*SystemMetricsClient, error) {
+func NewSystemMetricsClient(ctx context.Context, opts timber.ConnectionOptions) (*SystemMetricsClient, error) {
 	var conn *grpc.ClientConn
 	var err error
 
-	err = opts.validate()
+	err = opts.Validate()
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid connection options")
 	}
@@ -141,7 +121,7 @@ func NewSystemMetricsClient(ctx context.Context, opts ConnectionOptions) (*Syste
 // to send system metrics data to cedar, using the provided client connection.
 func NewSystemMetricsClientWithExistingConnection(ctx context.Context, clientConn *grpc.ClientConn) (*SystemMetricsClient, error) {
 	if clientConn == nil {
-		return nil, errors.New("Must provide existing client connection")
+		return nil, errors.New("must provide existing client connection")
 	}
 
 	s := &SystemMetricsClient{
