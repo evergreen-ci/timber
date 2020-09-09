@@ -92,7 +92,7 @@ $(buildDir)/output.%.lint: $(buildDir)/run-linter .FORCE
 .FORCE:
 
 
-proto:proto-buildlogger proto-system-metrics
+proto:proto-buildlogger proto-system-metrics proto-test-results
 proto-buildlogger:buildlogger.proto
 	@mkdir -p internal
 	protoc --go_out=plugins=grpc:internal buildlogger.proto
@@ -101,6 +101,10 @@ proto-system-metrics:formats.proto system_metrics.proto
 	@mkdir -p internal
 	protoc --go_out=plugins=grpc:internal formats.proto
 	protoc --go_out=plugins=grpc:internal system_metrics.proto
+proto-test-results:formats.proto test_results.proto
+	@mkdir -p internal
+	protoc --go_out=plugins=grpc:internal formats.proto
+	protoc --go_out=plugins=grpc:internal test_results.proto
 
 clean:
 	rm -rf internal/*.pb.go
