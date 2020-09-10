@@ -47,7 +47,7 @@ func NewClient(ctx context.Context, opts timber.ConnectionOptions) (*Client, err
 	return s, nil
 }
 
-// NewCNewClientWithExistingConnection returns a Client to send test results to Cedar using the
+// NewClientWithExistingConnection returns a Client to send test results to Cedar using the
 // given client connection. The given client connection's lifetime will not be managed by this
 // client.
 func NewClientWithExistingConnection(ctx context.Context, conn *grpc.ClientConn) (*Client, error) {
@@ -73,7 +73,7 @@ type CreateOptions struct {
 	Mainline    bool   `bson:"mainline" json:"mainline" yaml:"mainline"`
 }
 
-func (opts CreateOptions) Export() *internal.TestResultsInfo {
+func (opts CreateOptions) export() *internal.TestResultsInfo {
 	return &internal.TestResultsInfo{
 		Project:     opts.Project,
 		Version:     opts.Version,
@@ -88,7 +88,7 @@ func (opts CreateOptions) Export() *internal.TestResultsInfo {
 
 // CreateRecord creates a new metadata record in Cedar with the given options.
 func (c *Client) CreateRecord(ctx context.Context, opts CreateOptions) (string, error) {
-	resp, err := c.client.CreateTestResultsRecord(ctx, opts.Export())
+	resp, err := c.client.CreateTestResultsRecord(ctx, opts.export())
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
@@ -101,7 +101,7 @@ func (c *Client) AddResults(ctx context.Context, r Results) error {
 		return errors.Wrap(err, "invalid test results")
 	}
 
-	exported, err := r.Export()
+	exported, err := r.export()
 	if err != nil {
 		return errors.Wrap(err, "converting test results to protobuf type")
 	}
@@ -150,11 +150,11 @@ func (r Results) validate() error {
 	return catcher.Resolve()
 }
 
-// Export converts Results into the equivalent protobuf TestResults.
-func (r Results) Export() (*internal.TestResults, error) {
+// export converts Results into the equivalent protobuf TestResults.
+func (r Results) export() (*internal.TestResults, error) {
 	var results []*internal.TestResult
 	for _, res := range r.Results {
-		exported, err := res.Export()
+		exported, err := res.export()
 		if err != nil {
 			return nil, errors.Wrap(err, "converting test result")
 		}
@@ -179,7 +179,7 @@ type Result struct {
 }
 
 // Export converts a Result into the equivalent protobuf TestResult.
-func (r Result) Export() (*internal.TestResult, error) {
+func (r Result) export() (*internal.TestResult, error) {
 	created, err := ptypes.TimestampProto(r.TaskCreated)
 	if err != nil {
 		return nil, errors.Wrap(err, "converting create timestamp")

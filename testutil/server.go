@@ -179,15 +179,15 @@ func (ms *MockMetricsServer) CloseMetrics(_ context.Context, in *internal.System
 
 // MockTestResultsServer sets up a mock Cedar server for sending test results using gRPC.
 type MockTestResultsServer struct {
-	CreateErr  bool
-	AddErr     bool
-	StreamErr  bool
-	CloseErr   bool
-	Create     *internal.TestResultsInfo
-	Data       map[string][]*internal.TestResults
-	StreamData map[string][]*internal.TestResults
-	Close      *internal.TestResultsEndInfo
-	DialOpts   timber.DialCedarOptions
+	CreateErr     bool
+	AddErr        bool
+	StreamErr     bool
+	CloseErr      bool
+	Create        *internal.TestResultsInfo
+	Results       map[string][]*internal.TestResults
+	StreamResults map[string][]*internal.TestResults
+	Close         *internal.TestResultsEndInfo
+	DialOpts      timber.DialCedarOptions
 }
 
 // Address returns the address the server is listening on.
@@ -258,15 +258,15 @@ func (m *MockTestResultsServer) CreateTestResultsRecord(_ context.Context, in *i
 }
 
 // AddTestResults will return an error if AddErr is true, and
-// otherwise set Data to true.
+// otherwise set Results to true.
 func (m *MockTestResultsServer) AddTestResults(_ context.Context, in *internal.TestResults) (*internal.TestResultsResponse, error) {
 	if m.AddErr {
 		return nil, errors.New("add error")
 	}
-	if m.Data == nil {
-		m.Data = make(map[string][]*internal.TestResults)
+	if m.Results == nil {
+		m.Results = make(map[string][]*internal.TestResults)
 	}
-	m.Data[in.TestResultsRecordId] = append(m.Data[in.TestResultsRecordId], in)
+	m.Results[in.TestResultsRecordId] = append(m.Results[in.TestResultsRecordId], in)
 	return &internal.TestResultsResponse{TestResultsRecordId: in.TestResultsRecordId}, nil
 }
 
