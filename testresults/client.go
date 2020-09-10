@@ -17,6 +17,7 @@ import (
 type Client struct {
 	client    internal.CedarTestResultsClient
 	closeConn func() error
+	closed    bool
 }
 
 // NewClient returns a Client to send test results to Cedar. If authentication credentials are not
@@ -49,13 +50,13 @@ func NewClient(ctx context.Context, opts timber.ConnectionOptions) (*Client, err
 // NewCNewClientWithExistingConnection returns a Client to send test results to Cedar using the
 // given client connection. The given client connection's lifetime will not be managed by this
 // client.
-func NewClientWithExistingConnection(ctx context.Context, clientConn *grpc.ClientConn) (*Client, error) {
-	if clientConn == nil {
+func NewClientWithExistingConnection(ctx context.Context, conn *grpc.ClientConn) (*Client, error) {
+	if conn == nil {
 		return nil, errors.New("must provide an existing client connection")
 	}
 
 	s := &Client{
-		client:    internal.NewCedarTestResultsClient(clientConn),
+		client:    internal.NewCedarTestResultsClient(conn),
 		closeConn: func() error { return nil },
 	}
 	return s, nil
@@ -65,9 +66,8 @@ type CreateOptions struct {
 	Project     string `bson:"project" json:"project" yaml:"project"`
 	Version     string `bson:"version" json:"version" yaml:"version"`
 	Variant     string `bson:"variant" json:"variant" yaml:"variant"`
-	TaskName    string `bson:"task_name" json:"task_name" yaml:"task_name"`
 	TaskID      string `bson:"task_id" json:"task_id" yaml:"task_id"`
-	Name        string `bson:"name" json:"name" yaml:"name"`
+	TaskName    string `bson:"task_name" json:"task_name" yaml:"task_name"`
 	Execution   int32  `bson:"execution" json:"execution" yaml:"execution"`
 	RequestType string `bson:"request_type" json:"request_type" yaml:"request_type"`
 	Mainline    bool   `bson:"mainline" json:"mainline" yaml:"mainline"`
@@ -129,6 +129,9 @@ func (c *Client) CloseRecord(ctx context.Context, id string) error {
 // CloseClient closes the client connection if it was created via NewClient. If an existing
 // connection was used to create the client, it will not be closed.
 func (c *Client) CloseClient() error {
+	if c.closed {
+		return nil
+	}
 	if c.closeConn == nil {
 		return nil
 	}
@@ -144,9 +147,6 @@ type Results struct {
 func (r Results) validate() error {
 	catcher := grip.NewBasicCatcher()
 	catcher.NewWhen(r.ID == "", "must specify test result ID")
-	for _, res := range r.Results {
-		catcher.Wrap(res.validate(), "invalid test result")
-	}
 	return catcher.Resolve()
 }
 
@@ -176,18 +176,6 @@ type Result struct {
 	TaskCreated time.Time
 	TestStarted time.Time
 	TestEnded   time.Time
-}
-
-// validate ensures that all required fields are populated.
-func (r Result) validate() error {
-	catcher := grip.NewBasicCatcher()
-	catcher.NewWhen(r.Name == "", "name cannot be empty")
-	catcher.NewWhen(r.Status == "", "status cannot be empty")
-	catcher.NewWhen(r.LogURL == "", "log URL cannot be empty")
-	catcher.NewWhen(r.TaskCreated.IsZero(), "creation time must be populated")
-	catcher.NewWhen(r.TestStarted.IsZero(), "start time must be populated")
-	catcher.NewWhen(r.TestEnded.IsZero(), "end time must be populated")
-	return catcher.Resolve()
 }
 
 // Export converts a Result into the equivalent protobuf TestResult.
