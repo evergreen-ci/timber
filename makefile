@@ -101,10 +101,9 @@ proto-system-metrics:formats.proto system_metrics.proto
 	@mkdir -p internal
 	protoc --go_out=plugins=grpc:internal formats.proto
 	protoc --go_out=plugins=grpc:internal system_metrics.proto
-proto-test-results:formats.proto test_results.proto
+proto-test-results: test_results.proto
 	@mkdir -p internal
-	protoc --go_out=plugins=grpc:internal formats.proto
-	protoc --go_out=plugins=grpc:internal test_results.proto
+	protoc --go_out=plugins=grpc:internal $<
 
 clean:
 	rm -rf internal/*.pb.go
@@ -119,6 +118,8 @@ system_metrics.proto:
 	curl -L https://raw.githubusercontent.com/evergreen-ci/cedar/master/system_metrics.proto -o $@
 formats.proto:
 	curl -L https://raw.githubusercontent.com/evergreen-ci/cedar/master/formats.proto -o $@
+test_results.proto:
+	curl -L https://raw.githubusercontent.com/evergreen-ci/cedar/master/test_results.proto -o $@
 vendor:
 	glide install -s
 
