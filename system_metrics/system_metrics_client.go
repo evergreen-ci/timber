@@ -18,68 +18,6 @@ const (
 	defaultFlushInterval     = time.Minute
 )
 
-// CompressionType describes how the system metrics data is compressed.
-type CompressionType int32
-
-// Valid CompressionType values.
-const (
-	CompressionTypeNone  CompressionType = 0
-	CompressionTypeTARGZ CompressionType = 1
-	CompressionTypeZIP   CompressionType = 2
-	CompressionTypeGZ    CompressionType = 3
-	CompressionTypeXZ    CompressionType = 4
-)
-
-func (f CompressionType) validate() error {
-	switch f {
-	case CompressionTypeNone, CompressionTypeTARGZ, CompressionTypeZIP, CompressionTypeGZ, CompressionTypeXZ:
-		return nil
-	default:
-		return errors.New("invalid compression type specified")
-	}
-}
-
-// SchemaType describes how the time series data is stored.
-type SchemaType int32
-
-// Valid SchemaType values.
-const (
-	SchemaTypeRawEvents             SchemaType = 0
-	SchemaTypeCollapsedEvents       SchemaType = 1
-	SchemaTypeIntervalSummarization SchemaType = 2
-	SchemaTypeHistogram             SchemaType = 3
-)
-
-func (f SchemaType) validate() error {
-	switch f {
-	case SchemaTypeRawEvents, SchemaTypeCollapsedEvents, SchemaTypeIntervalSummarization, SchemaTypeHistogram:
-		return nil
-	default:
-		return errors.New("invalid schema type specified")
-	}
-}
-
-// DataFormat describes how the time series data is stored.
-type DataFormat int32
-
-// Valid DataFormat values.
-const (
-	DataFormatText DataFormat = 0
-	DataFormatFTDC DataFormat = 1
-	DataFormatBSON DataFormat = 2
-	DataFormatJSON DataFormat = 3
-	DataFormatCSV  DataFormat = 4
-)
-
-func (f DataFormat) validate() error {
-	switch f {
-	case DataFormatText, DataFormatFTDC, DataFormatBSON, DataFormatJSON, DataFormatCSV:
-		return nil
-	default:
-		return errors.New("invalid schema type specified")
-	}
-}
-
 // SystemMetricsClient provides a wrapper around the gRPC client for sending
 // system metrics data to cedar.
 type SystemMetricsClient struct {
@@ -130,22 +68,6 @@ func NewSystemMetricsClientWithExistingConnection(ctx context.Context, clientCon
 	return s, nil
 }
 
-// SystemMetricsOptions support the use and creation of a system metrics object.
-type SystemMetricsOptions struct {
-	// Unique information to identify the system metrics object.
-	Project   string `bson:"project" json:"project" yaml:"project"`
-	Version   string `bson:"version" json:"version" yaml:"version"`
-	Variant   string `bson:"variant" json:"variant" yaml:"variant"`
-	TaskName  string `bson:"task_name" json:"task_name" yaml:"task_name"`
-	TaskId    string `bson:"task_id" json:"task_id" yaml:"task_id"`
-	Execution int32  `bson:"execution" json:"execution" yaml:"execution"`
-	Mainline  bool   `bson:"mainline" json:"mainline" yaml:"mainline"`
-
-	// Data storage information for this object
-	Compression CompressionType `bson:"compression" json:"compression" yaml:"compression"`
-	Schema      SchemaType      `bson:"schema" json:"schema" yaml:"schema"`
-}
-
 // CreateSystemMetricsRecord creates a system metrics metadata object in cedar
 // with the provided info, along with setting the created_at timestamp.
 func (s *SystemMetricsClient) CreateSystemMetricsRecord(ctx context.Context, opts SystemMetricsOptions) (string, error) {
@@ -162,26 +84,6 @@ func (s *SystemMetricsClient) CreateSystemMetricsRecord(ctx context.Context, opt
 	}
 
 	return resp.Id, nil
-}
-
-// MetricDataOptions describes the data being streamed or sent to cedar.
-type MetricDataOptions struct {
-	Id         string
-	MetricType string
-	Format     DataFormat
-}
-
-func (s *MetricDataOptions) validate() error {
-	if s.Id == "" {
-		return errors.New("must specify id of system metrics object")
-	}
-	if s.MetricType == "" {
-		return errors.New("must specify the the type of metric in data")
-	}
-	if err := s.Format.validate(); err != nil {
-		return errors.Wrapf(err, "invalid format for id %s", s.Id)
-	}
-	return nil
 }
 
 // AddSystemMetrics sends the given byte slice to the cedar backend for the

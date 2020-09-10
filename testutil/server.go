@@ -225,7 +225,7 @@ func NewMockTestResultsServer(ctx context.Context, basePort int) (*MockTestResul
 }
 
 // NewMockTestResultsServerWithDialOpts will return a new MockTestResultsServer listening
-// on the port and url from the specified dial options
+// on the port and url from the specified dial options.
 func NewMockTestResultsServerWithDialOpts(ctx context.Context, opts timber.DialCedarOptions) (*MockTestResultsServer, error) {
 	srv := &MockTestResultsServer{}
 	srv.DialOpts = opts
