@@ -30,9 +30,9 @@ $(shell mkdir -p $(buildDir))
 
 # start lint setup targets
 lintDeps := $(buildDir)/run-linter $(buildDir)/golangci-lint
-$(buildDir)/golangci-lint:$(buildDir)
+$(buildDir)/golangci-lint:
 	@curl --retry 10 --retry-max-time 60 -sSfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(buildDir) v1.30.0 >/dev/null 2>&1
-$(buildDir)/run-linter:cmd/run-linter/run-linter.go $(buildDir)/golangci-lint $(buildDir)
+$(buildDir)/run-linter:cmd/run-linter/run-linter.go $(buildDir)/golangci-lint
 	@$(gobin) build -o $@ $<
 # end lint setup targets
 
