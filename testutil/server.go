@@ -289,22 +289,22 @@ func (m *MockTestResultsServer) CloseTestResultsRecord(_ context.Context, in *in
 // MockBuildloggerServer sets up a mock cedar server for testing buildlogger
 // logs to cedar using gRPC.
 type MockBuildloggerServer struct {
-	Mu         sync.Mutex
-	CreateErr  bool
-	AppendErr  bool
-	StreamErr  bool
-	CloseErr   bool
-	Create     *internal.LogInfo
-	Data       map[string][]*internal.LogLines
-	StreamData map[string][]*internal.LogLines
-	Close      *internal.LogEndInfo
-	DialOpts   timber.DialCedarOptions
+	Mu        sync.Mutex
+	CreateErr bool
+	AppendErr bool
+	CloseErr  bool
+	Create    *internal.LogData
+	Data      map[string][]*internal.LogLines
+	Close     *internal.LogEndInfo
+	DialOpts  timber.DialCedarOptions
 }
 
 // NewMockBuildloggerServer returns a new MockBuildloggerServer listening on a
 // port near the provided port.
 func NewMockBuildloggerServer(ctx context.Context, basePort int) (*MockBuildloggerServer, error) {
-	srv := &MockBuildloggerServer{}
+	srv := &MockBuildloggerServer{
+		Data: make(map[string][]*internal.LogLines),
+	}
 	port := GetPortNumber(basePort)
 
 	srv.DialOpts = timber.DialCedarOptions{
@@ -361,17 +361,23 @@ func (ms *MockBuildloggerServer) Address() string {
 // CreateLog returns an error if CreateErr is true, otherwise it sets Create to
 // the input.
 func (ms *MockBuildloggerServer) CreateLog(_ context.Context, in *internal.LogData) (*internal.BuildloggerResponse, error) {
+	ms.Mu.Lock()
+	defer ms.Mu.Unlock()
+
 	if ms.CreateErr {
 		return nil, errors.New("create error")
 	}
 
-	ms.CreateLog = in
+	ms.Create = in
 	return &internal.BuildloggerResponse{}, nil
 }
 
 // AppendLogLines returns an error if AppendErr is true, otherwise it adds the
 // input to Data.
 func (ms *MockBuildloggerServer) AppendLogLines(_ context.Context, in *internal.LogLines) (*internal.BuildloggerResponse, error) {
+	ms.Mu.Lock()
+	defer ms.Mu.Unlock()
+
 	if ms.AppendErr {
 		return nil, errors.New("append error")
 	}
@@ -392,10 +398,13 @@ func (ms *MockBuildloggerServer) StreamLogLines(in internal.Buildlogger_StreamLo
 // CloseLog returns an error if CloseErr is true, otherwise it sets Close to
 // the input.
 func (ms *MockBuildloggerServer) CloseLog(_ context.Context, in *internal.LogEndInfo) (*internal.BuildloggerResponse, error) {
+	ms.Mu.Lock()
+	defer ms.Mu.Unlock()
+
 	if ms.CloseErr {
 		return nil, errors.New("close error")
 	}
 
-	ms.CloseLog = in
+	ms.Close = in
 	return &internal.BuildloggerResponse{LogId: in.LogId}, nil
 }
