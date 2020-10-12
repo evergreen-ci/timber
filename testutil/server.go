@@ -331,7 +331,7 @@ func NewMockBuildloggerServer(ctx context.Context, basePort int) (*MockBuildlogg
 }
 
 // NewMockBuildloggerServerWithDialOpts returns a new MockBuildloggerServer
-// listening on the port and url from the specified dial options
+// listening on the port and url from the specified dial options.
 func NewMockBuildloggerServerWithDialOpts(ctx context.Context, opts timber.DialCedarOptions) (*MockBuildloggerServer, error) {
 	srv := &MockBuildloggerServer{}
 	srv.DialOpts = opts
