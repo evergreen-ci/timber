@@ -20,6 +20,7 @@ type MockCedarServer struct {
 	Metrics     *MockMetricsServer
 	TestResults *MockTestResultsServer
 	Buildlogger *MockBuildloggerServer
+	DialOpts    timber.DialCedarOptions
 }
 
 // NewMockCedarServer will return a new MockCedarServer listening on a port
@@ -55,7 +56,7 @@ func NewMockCedarServer(ctx context.Context, basePort int) (*MockCedarServer, er
 
 // NewMockCedarServerWithDialOpts will return a new MockCedarServer listening
 // on the port and url from the specified dial options.
-func NewMockMetricsServerWithDialOpts(ctx context.Context, opts timber.DialCedarOptions) (*MockCedarServer, error) {
+func NewMockCedarServerWithDialOpts(ctx context.Context, opts timber.DialCedarOptions) (*MockCedarServer, error) {
 	srv := &MockCedarServer{}
 	srv.DialOpts = opts
 	lis, err := net.Listen("tcp", srv.Address())
@@ -76,6 +77,11 @@ func NewMockMetricsServerWithDialOpts(ctx context.Context, opts timber.DialCedar
 		s.Stop()
 	}()
 	return srv, nil
+}
+
+// Address returns the address the server is listening on.
+func (ms *MockCedarServer) Address() string {
+	return fmt.Sprintf("%s:%s", ms.DialOpts.BaseAddress, ms.DialOpts.RPCPort)
 }
 
 // MockMetricsServer sets up a mock cedar server for testing sending system
