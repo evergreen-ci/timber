@@ -16,6 +16,68 @@ import (
 	"google.golang.org/grpc"
 )
 
+type MockCedarServer struct {
+	Metrics     *MockMetricsServer
+	TestResults *MockTestResultsServer
+	Buildlogger *MockBuildloggerServer
+}
+
+// NewMockCedarServer will return a new MockCedarServer listening on a port
+// near the provided port.
+func NewMockCedarServer(ctx context.Context, basePort int) (*MockCedarServer, error) {
+	srv := &MockCedarServer{}
+	port := GetPortNumber(basePort)
+
+	srv.DialOpts = timber.DialCedarOptions{
+		BaseAddress: "localhost",
+		RPCPort:     strconv.Itoa(port),
+	}
+
+	lis, err := net.Listen("tcp", srv.Address())
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	s := grpc.NewServer()
+	gopb.RegisterCedarSystemMetricsServer(s, srv.Metrics)
+	gopb.RegisterCedarTestResultsServer(s, srv.TestResults)
+	gopb.RegisterBuildloggerServer(s, srv.Buildlogger)
+
+	go func() {
+		_ = s.Serve(lis)
+	}()
+	go func() {
+		<-ctx.Done()
+		s.Stop()
+	}()
+	return srv, nil
+}
+
+// NewMockCedarServerWithDialOpts will return a new MockCedarServer listening
+// on the port and url from the specified dial options.
+func NewMockMetricsServerWithDialOpts(ctx context.Context, opts timber.DialCedarOptions) (*MockCedarServer, error) {
+	srv := &MockCedarServer{}
+	srv.DialOpts = opts
+	lis, err := net.Listen("tcp", srv.Address())
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	s := grpc.NewServer()
+	gopb.RegisterCedarSystemMetricsServer(s, srv.Metrics)
+	gopb.RegisterCedarTestResultsServer(s, srv.TestResults)
+	gopb.RegisterBuildloggerServer(s, srv.Buildlogger)
+
+	go func() {
+		_ = s.Serve(lis)
+	}()
+	go func() {
+		<-ctx.Done()
+		s.Stop()
+	}()
+	return srv, nil
+}
+
 // MockMetricsServer sets up a mock cedar server for testing sending system
 // metrics data to cedar using gRPC.
 type MockMetricsServer struct {
