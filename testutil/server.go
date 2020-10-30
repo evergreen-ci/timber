@@ -16,6 +16,8 @@ import (
 	"google.golang.org/grpc"
 )
 
+// MockCedarServer sets up a mock Cedar server for sending metrics, test
+// results, and logs using gRPC.
 type MockCedarServer struct {
 	Metrics     *MockMetricsServer
 	TestResults *MockTestResultsServer
