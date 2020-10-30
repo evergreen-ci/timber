@@ -28,7 +28,11 @@ type MockCedarServer struct {
 // NewMockCedarServer will return a new MockCedarServer listening on a port
 // near the provided port.
 func NewMockCedarServer(ctx context.Context, basePort int) (*MockCedarServer, error) {
-	srv := &MockCedarServer{}
+	srv := &MockCedarServer{
+		Metrics:     &MockMetricsServer{},
+		TestResults: &MockTestResultsServer{},
+		Buildlogger: &MockBuildloggerServer{},
+	}
 	port := GetPortNumber(basePort)
 
 	srv.DialOpts = timber.DialCedarOptions{
@@ -59,7 +63,11 @@ func NewMockCedarServer(ctx context.Context, basePort int) (*MockCedarServer, er
 // NewMockCedarServerWithDialOpts will return a new MockCedarServer listening
 // on the port and url from the specified dial options.
 func NewMockCedarServerWithDialOpts(ctx context.Context, opts timber.DialCedarOptions) (*MockCedarServer, error) {
-	srv := &MockCedarServer{}
+	srv := &MockCedarServer{
+		Metrics:     &MockMetricsServer{},
+		TestResults: &MockTestResultsServer{},
+		Buildlogger: &MockBuildloggerServer{},
+	}
 	srv.DialOpts = opts
 	lis, err := net.Listen("tcp", srv.Address())
 	if err != nil {
