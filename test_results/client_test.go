@@ -1,4 +1,4 @@
-package testresults
+package test_results
 
 import (
 	"context"
