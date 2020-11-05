@@ -1,4 +1,4 @@
-package test_results
+package testresults
 
 import (
 	"time"
