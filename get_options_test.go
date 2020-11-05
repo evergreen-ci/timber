@@ -23,7 +23,6 @@ func TestGetOptionsValidate(t *testing.T) {
 			name: "IDandTaskIDMissing",
 			opts: GetOptions{
 				BaseURL: "https://cedar.mongodb.com",
-				ID:      "id",
 			},
 			hasErr: true,
 		},
@@ -47,15 +46,15 @@ func TestGetOptionsValidate(t *testing.T) {
 			name: "TaskIDPopualted",
 			opts: GetOptions{
 				BaseURL: "https://cedar.mongodb.com",
-				taskID:  "task_id",
+				TaskID:  "task_id",
 			},
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if test.hasErr {
-				assert.Error(t, opts.Validate())
+				assert.Error(t, test.opts.Validate())
 			} else {
-				assert.NoError(t, opts.Validate())
+				assert.NoError(t, test.opts.Validate())
 			}
 		})
 	}
