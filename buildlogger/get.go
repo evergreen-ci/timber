@@ -33,9 +33,9 @@ type BuildloggerGetOptions struct {
 	Meta          bool
 }
 
-// Logs returns a ReadCloser with the logs or log metadata requested via HTTP
-// to a cedar service.
-func Logs(ctx context.Context, opts BuildloggerGetOptions) (io.ReadCloser, error) {
+// GetLogs returns a ReadCloser with the logs or log metadata requested via
+// HTTP to a cedar service.
+func GetLogs(ctx context.Context, opts BuildloggerGetOptions) (io.ReadCloser, error) {
 	url, err := opts.parse()
 	if err != nil {
 		return nil, errors.Wrap(err, "problem parsing options")
@@ -83,15 +83,13 @@ func (opts *BuildloggerGetOptions) parse() (string, error) {
 	url := fmt.Sprintf("%s/rest/v1/buildlogger", opts.CedarOpts.BaseURL)
 	if opts.CedarOpts.ID != "" {
 		url += fmt.Sprintf("/%s", opts.CedarOpts.ID)
-	} else {
-		if opts.CedarOpts.TestName != "" {
-			url += fmt.Sprintf("/test_name/%s/%s", opts.CedarOpts.TaskID, opts.CedarOpts.TestName)
-			if opts.GroupID != "" {
-				url += fmt.Sprintf("/group/%s", opts.GroupID)
-			}
-		} else {
-			url += fmt.Sprintf("/task_id/%s", opts.CedarOpts.TaskID)
+	} else if opts.CedarOpts.TestName != "" {
+		url += fmt.Sprintf("/test_name/%s/%s", opts.CedarOpts.TaskID, opts.CedarOpts.TestName)
+		if opts.GroupID != "" {
+			url += fmt.Sprintf("/group/%s", opts.GroupID)
 		}
+	} else {
+		url += fmt.Sprintf("/task_id/%s", opts.CedarOpts.TaskID)
 	}
 
 	if opts.Meta {
