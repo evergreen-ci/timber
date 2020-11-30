@@ -32,9 +32,9 @@ type LogFormat int32
 // Valid LogFormat values.
 const (
 	LogFormatUnknown LogFormat = 0
-	LogFormatText    LogFormat = 1
-	LogFormatJSON    LogFormat = 2
-	LogFormatBSON    LogFormat = 3
+	LogFormatJSON    LogFormat = 1
+	LogFormatBSON    LogFormat = 2
+	LogFormatText    LogFormat = 3
 )
 
 func (f LogFormat) validate() error {

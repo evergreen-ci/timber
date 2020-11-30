@@ -10,7 +10,6 @@ import (
 // options.LoggerProducer for BuildloggerV3.
 type JasperLoggerOptions struct {
 	Name          string         `json:"name" bson:"name"`
-	Prefix        string         `json:"prefix" bson:"prefix"`
 	Level         send.LevelInfo `json:"level" bson:"level"`
 	BuildloggerV3 LoggerOptions  `json:"buildloggerv3" bson:"buildloggerv3"`
 }
