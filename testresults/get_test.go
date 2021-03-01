@@ -70,7 +70,7 @@ func TestTestResultsGetOptionsValidate(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			err := test.opts.validate()
+			err := test.opts.Validate()
 			if test.hasErr {
 				assert.Error(t, err)
 			} else {

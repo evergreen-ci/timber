@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/evergreen-ci/timber"
+	"github.com/mongodb/grip"
 	"github.com/peterhellberg/link"
 	"github.com/pkg/errors"
 )
@@ -36,20 +37,16 @@ type BuildloggerGetOptions struct {
 	Meta          bool
 }
 
-func (opts *BuildloggerGetOptions) validate() error {
-	if err := opts.CedarOpts.Validate(); err != nil {
-		return errors.WithStack(err)
-	}
+// Validate ensures BuildloggerGetOptions is configured correctly.
+func (opts *BuildloggerGetOptions) Validate() error {
+	catcher := grip.NewBasicCatcher()
 
-	if (opts.ID == "" && opts.TaskID == "") || (opts.ID != "" && opts.TaskID != "") {
-		return errors.New("must provide either an id or a task id when requesting logs")
-	}
+	catcher.Add(opts.CedarOpts.Validate())
+	catcher.AddWhen(opts.ID == "" && opts.TaskID == "", errors.New("must provide an id or task id"))
+	catcher.AddWhen(opts.ID != "" && opts.TaskID != "", errors.New("cannot provide both id and task id"))
+	catcher.AddWhen(opts.TestName != "" && opts.TaskID == "", errors.New("must provide a task id when a test name is specified"))
 
-	if opts.TestName != "" && opts.TaskID == "" {
-		return errors.New("must provide a task id when test name is specified")
-	}
-
-	return nil
+	return catcher.Resolve()
 }
 
 // GetLogs returns a ReadCloser with the logs or log metadata requested via
@@ -76,7 +73,7 @@ func GetLogs(ctx context.Context, opts BuildloggerGetOptions) (io.ReadCloser, er
 }
 
 func (opts *BuildloggerGetOptions) parse() (string, error) {
-	if err := opts.validate(); err != nil {
+	if err := opts.Validate(); err != nil {
 		return "", errors.WithStack(err)
 	}
 

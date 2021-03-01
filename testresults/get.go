@@ -11,6 +11,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+// TestResultsGetOptions specify the required and optional information to
+// create the test results HTTP GET request to cedar.
 type TestResultsGetOptions struct {
 	CedarOpts timber.GetOptions
 
@@ -23,26 +25,22 @@ type TestResultsGetOptions struct {
 	Execution     int
 }
 
-func (opts *TestResultsGetOptions) validate() error {
-	if err := opts.CedarOpts.Validate(); err != nil {
-		return errors.WithStack(err)
-	}
+// Validate ensures TestResultsGetOptions is configured correctly.
+func (opts *TestResultsGetOptions) Validate() error {
+	catcher := grip.NewBasicCatcher()
 
-	if (opts.TaskID == "" && opts.DisplayTaskID == "") || (opts.TaskID != "" && opts.DisplayTaskID != "") {
-		return errors.New("must provide either a task id or a display task id when requesting test results")
-	}
+	catcher.Add(opts.CedarOpts.Validate())
+	catcher.AddWhen(opts.TaskID == "" && opts.DisplayTaskID == "", errors.New("must provide a task id or a display task id"))
+	catcher.AddWhen(opts.TaskID != "" && opts.DisplayTaskID != "", errors.New("cannot provide both a task id and a display task id"))
+	catcher.AddWhen(opts.TestName != "" && opts.TaskID == "", errors.New("must provide a task id when a test name is specified"))
 
-	if opts.TestName != "" && opts.TaskID == "" {
-		return errors.New("must provide a task id when test name is specified")
-	}
-
-	return nil
+	return catcher.Resolve()
 }
 
 // GetTestResults returns with the test results requested via HTTP to a cedar
 // service.
 func GetTestResults(ctx context.Context, opts TestResultsGetOptions) ([]byte, error) {
-	if err := opts.validate(); err != nil {
+	if err := opts.Validate(); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
