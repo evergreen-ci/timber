@@ -17,6 +17,7 @@ type CreateOptions struct {
 	TaskID          string `bson:"task_id" json:"task_id" yaml:"task_id"`
 	TaskName        string `bson:"task_name" json:"task_name" yaml:"task_name"`
 	DisplayTaskName string `bson:"display_task_name" json:"display_task_name" yaml:"display_task_name"`
+	DisplayTaskID   string `bson:"display_task_id" json:"display_task_id" yaml:"display_task_id"`
 	Execution       int32  `bson:"execution" json:"execution" yaml:"execution"`
 	RequestType     string `bson:"request_type" json:"request_type" yaml:"request_type"`
 	Mainline        bool   `bson:"mainline" json:"mainline" yaml:"mainline"`
@@ -69,6 +70,7 @@ type Result struct {
 	Name        string
 	Trial       int32
 	Status      string
+	LogURL      string
 	LineNum     int32
 	TaskCreated time.Time
 	TestStarted time.Time
