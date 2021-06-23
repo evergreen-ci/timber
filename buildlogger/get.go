@@ -46,7 +46,7 @@ func (opts *BuildloggerGetOptions) Validate() error {
 	catcher.AddWhen(opts.ID == "" && opts.TaskID == "", errors.New("must provide an id or task id"))
 	catcher.AddWhen(opts.ID != "" && opts.TaskID != "", errors.New("cannot provide both id and task id"))
 	catcher.AddWhen(opts.TestName != "" && opts.TaskID == "", errors.New("must provide a task id when a test name is specified"))
-	catcher.AddWhen(opts.GroupID != "" && opts.TaskID == "", errors.New("must provide a task id when a groud id is specified"))
+	catcher.AddWhen(opts.GroupID != "" && opts.TaskID == "", errors.New("must provide a task id when a group id is specified"))
 	catcher.AddWhen(opts.GroupID != "" && opts.Meta, errors.New("cannot specify a group id and set meta to true"))
 
 	return catcher.Resolve()
