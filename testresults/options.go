@@ -78,6 +78,7 @@ type Result struct {
 	Trial           int32     `bson:"trial" json:"trial" yaml:"trial"`
 	Status          string    `bson:"status" json:"status" yaml:"status"`
 	LogTestName     string    `bson:"log_test_name" json:"log_test_name" yaml:"log_test_name"`
+	LogURL          string    `bson:"log_url" json:"log_url" yaml:"log_url"`
 	LineNum         int32     `bson:"line_num" json:"line_num" yaml:"line_num"`
 	TaskCreated     time.Time `bson:"task_created" json:"task_created" yaml:"task_created"`
 	TestStarted     time.Time `bson:"test_started" json:"test_started" yaml:"test_started"`
@@ -105,6 +106,7 @@ func (r Result) export() (*gopb.TestResult, error) {
 		Trial:           r.Trial,
 		Status:          r.Status,
 		LogTestName:     r.LogTestName,
+		LogUrl:          r.LogURL,
 		LineNum:         r.LineNum,
 		TaskCreateTime:  created,
 		TestStartTime:   started,
