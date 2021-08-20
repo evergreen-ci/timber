@@ -24,6 +24,7 @@ type TestResultsGetOptions struct {
 	DisplayTaskID string
 	TestName      string
 	Execution     int
+	FailedSample  bool
 }
 
 // Validate ensures TestResultsGetOptions is configured correctly.
@@ -34,6 +35,7 @@ func (opts *TestResultsGetOptions) Validate() error {
 	catcher.AddWhen(opts.TaskID == "" && opts.DisplayTaskID == "", errors.New("must provide a task id or a display task id"))
 	catcher.AddWhen(opts.TaskID != "" && opts.DisplayTaskID != "", errors.New("cannot provide both a task id and a display task id"))
 	catcher.AddWhen(opts.TestName != "" && opts.TaskID == "", errors.New("must provide a task id when a test name is specified"))
+	catcher.AddWhen(opts.FailedSample && opts.TestName != "", errors.New("cannot request the failed sample when requesting a single test result"))
 
 	return catcher.Resolve()
 }
@@ -46,19 +48,22 @@ func GetTestResults(ctx context.Context, opts TestResultsGetOptions) ([]byte, er
 	}
 
 	var urlString string
-	if opts.DisplayTaskID != "" {
+	if opts.DisplayTaskID != "" && !opts.FailedSample {
 		urlString = fmt.Sprintf("%s/rest/v1/test_results/display_task_id/%s", opts.CedarOpts.BaseURL, url.PathEscape(opts.DisplayTaskID))
 	} else if opts.TestName == "" {
 		urlString = fmt.Sprintf("%s/rest/v1/test_results/task_id/%s", opts.CedarOpts.BaseURL, url.PathEscape(opts.TaskID))
 	} else {
 		urlString = fmt.Sprintf("%s/rest/v1/test_results/test_name/%s/%s", opts.CedarOpts.BaseURL, url.PathEscape(opts.TaskID), url.PathEscape(opts.TestName))
 	}
+	if opts.FailedSample {
+		urlString += "/failed_sample"
+	}
 	urlString += fmt.Sprintf("?execution=%d", opts.Execution)
 
 	catcher := grip.NewBasicCatcher()
 	resp, err := opts.CedarOpts.DoReq(ctx, urlString)
 	if err != nil {
-		return nil, errors.Wrap(err, "problem requesting test results from cedar")
+		return nil, errors.Wrap(err, "requesting test results from cedar")
 	}
 	if resp.StatusCode != http.StatusOK {
 		catcher.Add(resp.Body.Close())
