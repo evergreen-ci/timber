@@ -20,11 +20,12 @@ type TestResultsGetOptions struct {
 	// Request information. See cedar's REST documentation for more
 	// information:
 	// `https://github.com/evergreen-ci/cedar/wiki/Rest-V1-Usage`.
-	TaskID        string
-	DisplayTaskID string
-	TestName      string
-	Execution     int
-	FailedSample  bool
+	TaskID          string
+	DisplayTaskID   string
+	TestName        string
+	Execution       int
+	LatestExecution bool
+	FailedSample    bool
 }
 
 // Validate ensures TestResultsGetOptions is configured correctly.
@@ -35,6 +36,7 @@ func (opts *TestResultsGetOptions) Validate() error {
 	catcher.AddWhen(opts.TaskID == "" && opts.DisplayTaskID == "", errors.New("must provide a task id or a display task id"))
 	catcher.AddWhen(opts.TaskID != "" && opts.DisplayTaskID != "", errors.New("cannot provide both a task id and a display task id"))
 	catcher.AddWhen(opts.TestName != "" && opts.TaskID == "", errors.New("must provide a task id when a test name is specified"))
+	catcher.AddWhen(opts.LatestExecution && opts.Execution > 0, errors.New("cannot provide an execution when requesting latest"))
 	catcher.AddWhen(opts.FailedSample && opts.TestName != "", errors.New("cannot request the failed sample when requesting a single test result"))
 
 	return catcher.Resolve()
@@ -58,7 +60,17 @@ func GetTestResults(ctx context.Context, opts TestResultsGetOptions) ([]byte, er
 	if opts.FailedSample {
 		urlString += "/failed_sample"
 	}
-	urlString += fmt.Sprintf("?execution=%d", opts.Execution)
+
+	var params string
+	if !opts.LatestExecution {
+		params += fmt.Sprintf("execution=%d", opts.Execution)
+	}
+	if opts.FailedSample && opts.DisplayTaskID != "" {
+		params += "display_task=true"
+	}
+	if len(params) > 0 {
+		urlString += "?" + params
+	}
 
 	catcher := grip.NewBasicCatcher()
 	resp, err := opts.CedarOpts.DoReq(ctx, urlString)
