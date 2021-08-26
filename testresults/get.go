@@ -32,8 +32,8 @@ func (opts *TestResultsGetOptions) Validate() error {
 	catcher := grip.NewBasicCatcher()
 
 	catcher.Add(opts.CedarOpts.Validate())
-	catcher.AddWhen(opts.TaskID == "", errors.New("must provide a task id"))
-	catcher.AddWhen(opts.FailedSample && opts.TestName != "", errors.New("cannot request the failed sample when requesting a single test result"))
+	catcher.NewWhen(opts.TaskID == "", "must provide a task id")
+	catcher.NewWhen(opts.FailedSample && opts.TestName != "", "cannot request the failed sample when requesting a single test result")
 
 	return catcher.Resolve()
 }
