@@ -20,12 +20,11 @@ type TestResultsGetOptions struct {
 	// Request information. See cedar's REST documentation for more
 	// information:
 	// `https://github.com/evergreen-ci/cedar/wiki/Rest-V1-Usage`.
-	TaskID          string
-	DisplayTaskID   string
-	TestName        string
-	Execution       int
-	LatestExecution bool
-	FailedSample    bool
+	TaskID       string
+	TestName     string
+	Execution    *int
+	FailedSample bool
+	DisplayTask  bool
 }
 
 // Validate ensures TestResultsGetOptions is configured correctly.
@@ -33,11 +32,8 @@ func (opts *TestResultsGetOptions) Validate() error {
 	catcher := grip.NewBasicCatcher()
 
 	catcher.Add(opts.CedarOpts.Validate())
-	catcher.AddWhen(opts.TaskID == "" && opts.DisplayTaskID == "", errors.New("must provide a task id or a display task id"))
-	catcher.AddWhen(opts.TaskID != "" && opts.DisplayTaskID != "", errors.New("cannot provide both a task id and a display task id"))
-	catcher.AddWhen(opts.TestName != "" && opts.TaskID == "", errors.New("must provide a task id when a test name is specified"))
-	catcher.AddWhen(opts.LatestExecution && opts.Execution > 0, errors.New("cannot provide an execution when requesting latest"))
-	catcher.AddWhen(opts.FailedSample && opts.TestName != "", errors.New("cannot request the failed sample when requesting a single test result"))
+	catcher.NewWhen(opts.TaskID == "", "must provide a task id")
+	catcher.NewWhen(opts.FailedSample && opts.TestName != "", "cannot request the failed sample when requesting a single test result")
 
 	return catcher.Resolve()
 }
@@ -49,23 +45,19 @@ func GetTestResults(ctx context.Context, opts TestResultsGetOptions) ([]byte, er
 		return nil, errors.WithStack(err)
 	}
 
-	var urlString string
-	if opts.DisplayTaskID != "" && !opts.FailedSample {
-		urlString = fmt.Sprintf("%s/rest/v1/test_results/display_task_id/%s", opts.CedarOpts.BaseURL, url.PathEscape(opts.DisplayTaskID))
-	} else if opts.TestName == "" {
-		urlString = fmt.Sprintf("%s/rest/v1/test_results/task_id/%s", opts.CedarOpts.BaseURL, url.PathEscape(opts.TaskID))
-	} else {
-		urlString = fmt.Sprintf("%s/rest/v1/test_results/test_name/%s/%s", opts.CedarOpts.BaseURL, url.PathEscape(opts.TaskID), url.PathEscape(opts.TestName))
-	}
+	urlString := fmt.Sprintf("%s/rest/v1/test_results/task_id/%s", opts.CedarOpts.BaseURL, url.PathEscape(opts.TaskID))
 	if opts.FailedSample {
 		urlString += "/failed_sample"
 	}
 
 	var params string
-	if !opts.LatestExecution {
+	if opts.TestName != "" {
+		params += fmt.Sprintf("test_name=%s", opts.TestName)
+	}
+	if opts.Execution != nil {
 		params += fmt.Sprintf("execution=%d", opts.Execution)
 	}
-	if opts.FailedSample && opts.DisplayTaskID != "" {
+	if opts.DisplayTask {
 		params += "display_task=true"
 	}
 	if len(params) > 0 {

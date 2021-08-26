@@ -14,14 +14,14 @@ func TestTestResultsGetOptionsValidate(t *testing.T) {
 		hasErr bool
 	}{
 		{
-			name: "InvalidCedarOpts",
+			name: "FailsWithInvalidCedarOpts",
 			opts: TestResultsGetOptions{
 				TaskID: "task",
 			},
 			hasErr: true,
 		},
 		{
-			name: "MissingTaskIDAndDisplayTaskID",
+			name: "FailsWithMissingTaskID",
 			opts: TestResultsGetOptions{
 				CedarOpts: timber.GetOptions{
 					BaseURL: "https://url.com",
@@ -30,18 +30,7 @@ func TestTestResultsGetOptionsValidate(t *testing.T) {
 			hasErr: true,
 		},
 		{
-			name: "MissingTaskIDWithTestName",
-			opts: TestResultsGetOptions{
-				CedarOpts: timber.GetOptions{
-					BaseURL: "https://url.com",
-				},
-				DisplayTaskID: "display",
-				TestName:      "test",
-			},
-			hasErr: true,
-		},
-		{
-			name: "TestNameAndFailedSample",
+			name: "FailsWithTestNameAndFailedSample",
 			opts: TestResultsGetOptions{
 				CedarOpts: timber.GetOptions{
 					BaseURL: "https://url.com",
@@ -53,7 +42,7 @@ func TestTestResultsGetOptionsValidate(t *testing.T) {
 			hasErr: true,
 		},
 		{
-			name: "TaskID",
+			name: "SucceedsWithTaskID",
 			opts: TestResultsGetOptions{
 				CedarOpts: timber.GetOptions{
 					BaseURL: "https://url.com",
@@ -62,7 +51,7 @@ func TestTestResultsGetOptionsValidate(t *testing.T) {
 			},
 		},
 		{
-			name: "TaskIDAndFailedSample",
+			name: "SucceedsWithTaskIDAndFailedSample",
 			opts: TestResultsGetOptions{
 				CedarOpts: timber.GetOptions{
 					BaseURL: "https://url.com",
@@ -72,32 +61,45 @@ func TestTestResultsGetOptionsValidate(t *testing.T) {
 			},
 		},
 		{
-			name: "DisplayTaskID",
+			name: "SucceedsWithDisplayTaskID",
 			opts: TestResultsGetOptions{
 				CedarOpts: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
-				DisplayTaskID: "display",
+				TaskID:      "display",
+				DisplayTask: true,
 			},
 		},
 		{
-			name: "DisplayTaskIDAndFailedSample",
+			name: "SucceedsWithDisplayTaskIDAndFailedSample",
 			opts: TestResultsGetOptions{
 				CedarOpts: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
-				DisplayTaskID: "display",
-				FailedSample:  true,
+				TaskID:       "display",
+				FailedSample: true,
+				DisplayTask:  true,
 			},
 		},
 		{
-			name: "TestName",
+			name: "SucceedsWithTaskIDAndTestName",
 			opts: TestResultsGetOptions{
 				CedarOpts: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				TaskID:   "task",
 				TestName: "test",
+			},
+		},
+		{
+			name: "SucceedsWithDisplayTaskIDAndTestName",
+			opts: TestResultsGetOptions{
+				CedarOpts: timber.GetOptions{
+					BaseURL: "https://url.com",
+				},
+				TaskID:      "task",
+				TestName:    "test",
+				DisplayTask: true,
 			},
 		},
 	} {
