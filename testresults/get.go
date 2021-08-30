@@ -24,6 +24,7 @@ type TestResultsGetOptions struct {
 	TestName     string
 	Execution    *int
 	FailedSample bool
+	Stats        bool
 	DisplayTask  bool
 }
 
@@ -34,6 +35,7 @@ func (opts *TestResultsGetOptions) Validate() error {
 	catcher.Add(opts.CedarOpts.Validate())
 	catcher.NewWhen(opts.TaskID == "", "must provide a task id")
 	catcher.NewWhen(opts.FailedSample && opts.TestName != "", "cannot request the failed sample when requesting a single test result")
+	catcher.NewWhen(opts.FailedSample && opts.Stats, "cannot request the failed sample and stats, must be one or the other")
 
 	return catcher.Resolve()
 }
@@ -48,6 +50,9 @@ func GetTestResults(ctx context.Context, opts TestResultsGetOptions) ([]byte, er
 	urlString := fmt.Sprintf("%s/rest/v1/test_results/task_id/%s", opts.CedarOpts.BaseURL, url.PathEscape(opts.TaskID))
 	if opts.FailedSample {
 		urlString += "/failed_sample"
+	}
+	if opts.Stats {
+		urlString += "/stats"
 	}
 
 	var params string
