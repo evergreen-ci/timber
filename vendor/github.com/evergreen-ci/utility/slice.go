@@ -1,9 +1,6 @@
 package utility
 
-import (
-	"sort"
-	"strings"
-)
+import "strings"
 
 // StringSliceContains determines if a string is in a slice
 func StringSliceContains(slice []string, item string) bool {
@@ -23,7 +20,7 @@ func StringSliceContains(slice []string, item string) bool {
 // StringSliceIntersection returns the intersecting elements of slices a and b.
 func StringSliceIntersection(a, b []string) []string {
 	inA := map[string]bool{}
-	var out []string
+	out := []string{}
 	for _, elem := range a {
 		inA[elem] = true
 	}
@@ -44,7 +41,7 @@ func StringSliceSymmetricDifference(a, b []string) ([]string, []string) {
 		mapA[elem] = true
 		mapAcopy[elem] = true
 	}
-	var inB []string
+	inB := []string{}
 	for _, elem := range b {
 		if mapAcopy[elem] { // need to delete from the copy in case B has duplicates of the same value in A
 			delete(mapA, elem)
@@ -52,7 +49,7 @@ func StringSliceSymmetricDifference(a, b []string) ([]string, []string) {
 			inB = append(inB, elem)
 		}
 	}
-	var inA []string
+	inA := []string{}
 	for elem := range mapA {
 		inA = append(inA, elem)
 	}
@@ -63,7 +60,7 @@ func StringSliceSymmetricDifference(a, b []string) ([]string, []string) {
 // Order is preserved.
 func UniqueStrings(slice []string) []string {
 	seen := map[string]bool{}
-	var out []string
+	out := []string{}
 	for _, s := range slice {
 		if seen[s] {
 			continue
@@ -104,18 +101,4 @@ func GetSetDifference(a, b []string) []string {
 	}
 
 	return d
-}
-
-// IndexOf returns the first occurrence of a string in a sorted array
-func IndexOf(a []string, toFind string) int {
-	i := sort.Search(len(a), func(index int) bool {
-		return strings.Compare(a[index], toFind) >= 0
-	})
-	if i < 0 || i >= len(a) {
-		return -1
-	}
-	if a[i] == toFind {
-		return i
-	}
-	return -1
 }

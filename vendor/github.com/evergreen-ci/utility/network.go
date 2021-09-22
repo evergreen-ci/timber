@@ -3,6 +3,7 @@ package utility
 import (
 	"io/ioutil"
 	"net"
+	"net/http"
 
 	"github.com/pkg/errors"
 )
@@ -18,10 +19,7 @@ func GetPublicIP() (string, error) {
 
 	_, cidr, _ := net.ParseCIDR("172.16.0.0/12")
 	if cidr.Contains(localAddr.IP.To4()) {
-		client := GetHTTPClient()
-		defer PutHTTPClient(client)
-
-		resp, err := client.Get("http://169.254.169.254/latest/meta-data/public-ipv4")
+		resp, err := http.DefaultClient.Get("http://169.254.169.254/latest/meta-data/public-ipv4")
 		if err != nil {
 			return localAddr.IP.To4().String(), errors.Wrap(err, "problem accessing metadata service")
 		}

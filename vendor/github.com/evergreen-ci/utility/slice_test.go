@@ -65,12 +65,12 @@ func TestStringSliceSymmetricDifference(t *testing.T) {
 	assert.Len(t, onlyB, 2)
 
 	onlyA, onlyB = StringSliceSymmetricDifference(a, a)
-	assert.Zero(t, onlyA)
-	assert.Zero(t, onlyB)
+	assert.Equal(t, []string{}, onlyA)
+	assert.Equal(t, []string{}, onlyB)
 
 	empty1, empty2 := StringSliceSymmetricDifference([]string{}, []string{})
-	assert.Zero(t, empty1)
-	assert.Zero(t, empty2)
+	assert.Equal(t, []string{}, empty1)
+	assert.Equal(t, []string{}, empty2)
 }
 
 func TestGetSetDifference(t *testing.T) {
@@ -85,12 +85,4 @@ func TestGetSetDifference(t *testing.T) {
 	assert.Equal("four", difference[0])
 	assert.Equal("one", difference[1])
 	assert.Equal("three", difference[2])
-}
-
-func TestIndexOf(t *testing.T) {
-	assert.Equal(t, 3, IndexOf([]string{"a", "b", "c", "d", "e"}, "d"))
-	assert.Equal(t, 0, IndexOf([]string{"a", "b", "c", "d", "e"}, "a"))
-	assert.Equal(t, -1, IndexOf([]string{"a", "b", "c", "d", "e"}, "f"))
-	assert.Equal(t, -1, IndexOf([]string{"a", "b", "c", "d", "e"}, "1"))
-	assert.Equal(t, -1, IndexOf([]string{"a", "b", "c", "d", "e"}, "æ"))
 }
