@@ -11,14 +11,13 @@ import (
 
 	"github.com/evergreen-ci/timber"
 	"github.com/mongodb/grip"
-	"github.com/peterhellberg/link"
 	"github.com/pkg/errors"
 )
 
 // GetOptions specify the required and optional information to create the
 // buildlogger HTTP GET request to cedar.
 type GetOptions struct {
-	CedarOpts timber.GetOptions
+	Cedar timber.GetOptions
 
 	// Request information. See cedar's REST documentation for more
 	// information:
@@ -45,7 +44,7 @@ type GetOptions struct {
 func (opts GetOptions) Validate() error {
 	catcher := grip.NewBasicCatcher()
 
-	catcher.Add(opts.CedarOpts.Validate())
+	catcher.Add(opts.Cedar.Validate())
 	catcher.AddWhen(opts.ID == "" && opts.TaskID == "", errors.New("must provide an id or task id"))
 	catcher.AddWhen(opts.ID != "" && opts.TaskID != "", errors.New("cannot provide both id and task id"))
 	catcher.AddWhen(opts.TestName != "" && opts.TaskID == "", errors.New("must provide a task id when a test name is specified"))
@@ -88,7 +87,7 @@ func (opts GetOptions) parse() string {
 		params = append(params, "paginate=true")
 	}
 
-	urlString := fmt.Sprintf("%s/rest/v1/buildlogger", opts.CedarOpts.BaseURL)
+	urlString := fmt.Sprintf("%s/rest/v1/buildlogger", opts.Cedar.BaseURL)
 	if opts.ID != "" {
 		urlString += fmt.Sprintf("/%s", url.PathEscape(opts.ID))
 	} else if opts.TestName != "" {
@@ -115,70 +114,13 @@ func Get(ctx context.Context, opts GetOptions) (io.ReadCloser, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	resp, err := opts.CedarOpts.DoReq(ctx, opts.parse())
-	if err == nil {
-		if resp.StatusCode == http.StatusOK {
-			return &paginatedReadCloser{
-				ctx:        ctx,
-				header:     resp.Header,
-				opts:       opts.CedarOpts,
-				ReadCloser: resp.Body,
-			}, nil
-		}
+	resp, err := opts.Cedar.DoReq(ctx, opts.parse())
+	if err != nil {
+		return nil, errors.Wrapf(err, "fetch logs request failed")
+	}
+
+	if resp.StatusCode != http.StatusOK {
 		return nil, errors.Errorf("failed to fetch logs with resp '%s'", resp.Status)
 	}
-	return nil, errors.Wrapf(err, "fetch logs request failed")
-}
-
-type paginatedReadCloser struct {
-	ctx    context.Context
-	header http.Header
-	opts   timber.GetOptions
-
-	io.ReadCloser
-}
-
-func (r *paginatedReadCloser) Read(p []byte) (int, error) {
-	if r.ReadCloser == nil {
-		return 0, io.EOF
-	}
-
-	var (
-		n      int
-		offset int
-		err    error
-	)
-	for offset < len(p) {
-		n, err = r.ReadCloser.Read(p[offset:])
-		offset += n
-		if err == io.EOF {
-			err = r.getNextPage()
-		}
-		if err != nil {
-			break
-		}
-	}
-
-	return offset, err
-}
-
-func (r *paginatedReadCloser) getNextPage() error {
-	group, ok := link.ParseHeader(r.header)["next"]
-	if ok {
-		resp, err := r.opts.DoReq(r.ctx, group.URI)
-		if err != nil {
-			return errors.Wrap(err, "requesting next page")
-		}
-
-		if err = r.Close(); err != nil {
-			return errors.Wrap(err, "closing last response reader")
-		}
-
-		r.header = resp.Header
-		r.ReadCloser = resp.Body
-	} else {
-		return io.EOF
-	}
-
-	return nil
+	return timber.NewPaginatedReadCloser(ctx, resp, opts.Cedar), nil
 }

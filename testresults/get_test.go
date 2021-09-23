@@ -26,7 +26,7 @@ func TestGetOptionsValidate(t *testing.T) {
 		{
 			name: "MissingTaskID",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 			},
@@ -35,7 +35,7 @@ func TestGetOptionsValidate(t *testing.T) {
 		{
 			name: "FailedSampleAndStats",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				TaskID:       "task",
@@ -47,7 +47,7 @@ func TestGetOptionsValidate(t *testing.T) {
 		{
 			name: "TaskID",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				TaskID: "task",
@@ -56,7 +56,7 @@ func TestGetOptionsValidate(t *testing.T) {
 		{
 			name: "TaskIDAndFailedSample",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				TaskID:       "task",
@@ -66,7 +66,7 @@ func TestGetOptionsValidate(t *testing.T) {
 		{
 			name: "TaskIDAndStats",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				TaskID:       "task",
@@ -96,17 +96,17 @@ func TestParse(t *testing.T) {
 		{
 			name: "TaskID",
 			opts: GetOptions{
-				CedarOpts: cedarOpts,
-				TaskID:    "task",
+				Cedar:  cedarOpts,
+				TaskID: "task",
 			},
 			expectedURL: baseURL + "/task_id/task",
 		},
 		{
 			name: "TaskIDWithParams",
 			opts: GetOptions{
-				CedarOpts: cedarOpts,
-				TaskID:    "task?",
-				Execution: utility.ToIntPtr(1), utility.ToIntPtr(1),
+				Cedar:        cedarOpts,
+				TaskID:       "task?",
+				Execution:    utility.ToIntPtr(1),
 				DisplayTask:  true,
 				TestName:     "test?",
 				Statuses:     []string{"fail&", "silentfail"},
@@ -131,7 +131,7 @@ func TestParse(t *testing.T) {
 		{
 			name: "FailedSample",
 			opts: GetOptions{
-				CedarOpts:    cedarOpts,
+				Cedar:        cedarOpts,
 				TaskID:       "task",
 				FailedSample: true,
 			},
@@ -140,9 +140,9 @@ func TestParse(t *testing.T) {
 		{
 			name: "Stats",
 			opts: GetOptions{
-				CedarOpts: cedarOpts,
-				TaskID:    "task",
-				Stats:     true,
+				Cedar:  cedarOpts,
+				TaskID: "task",
+				Stats:  true,
 			},
 			expectedURL: baseURL + "/task_id/task/stats",
 		},

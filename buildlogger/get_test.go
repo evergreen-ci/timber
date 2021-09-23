@@ -1,12 +1,7 @@
 package buildlogger
 
 import (
-	"context"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
@@ -14,7 +9,6 @@ import (
 	"github.com/evergreen-ci/timber"
 	"github.com/evergreen-ci/utility"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestValidate(t *testing.T) {
@@ -33,7 +27,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "MissingIDAndTaskID",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 			},
@@ -42,7 +36,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "IDAndTaskID",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				ID:     "id",
@@ -51,19 +45,9 @@ func TestValidate(t *testing.T) {
 			hasErr: true,
 		},
 		{
-			name: "TaskID",
-			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
-					BaseURL: "https://url.com",
-				},
-				TaskID: "task",
-			},
-			hasErr: true,
-		},
-		{
 			name: "TestNameAndNoTaskID",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				ID:       "id",
@@ -74,7 +58,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "GroupIDAndNoTaskID",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				ID:      "id",
@@ -85,7 +69,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "GroupIDAndMeta",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				TaskID:  "task",
@@ -97,7 +81,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "ID",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				ID: "id",
@@ -106,7 +90,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "IDAndMeta",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				ID: "id",
@@ -115,7 +99,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "TaskID",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				TaskID: "task",
@@ -124,7 +108,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "TaskIDAndMeta",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				TaskID: "task",
@@ -134,7 +118,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "TestName",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				TaskID:   "task",
@@ -145,7 +129,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "TestNameAndMeta",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				TaskID:   "task",
@@ -156,7 +140,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "TaskIDAndGroupID",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				TaskID:  "task",
@@ -166,7 +150,7 @@ func TestValidate(t *testing.T) {
 		{
 			name: "TestNameAndGroupID",
 			opts: GetOptions{
-				CedarOpts: timber.GetOptions{
+				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
 				TaskID:   "task",
@@ -189,22 +173,32 @@ func TestValidate(t *testing.T) {
 func TestParse(t *testing.T) {
 	t.Run("ID", func(t *testing.T) {
 		opts := GetOptions{
-			CedarOpts: timber.GetOptions{
+			Cedar: timber.GetOptions{
 				BaseURL: "https://cedar.mongodb.com",
 			},
 			ID: "id/1",
 		}
 		t.Run("Logs", func(t *testing.T) {
-			assert.Equal(t, fmt.Sprintf("%s/rest/v1/buildlogger/%s?paginate=true", opts.CedarOpts.BaseURL, url.PathEscape(opts.ID)), opts.parse())
+			expectedURL := fmt.Sprintf(
+				"%s/rest/v1/buildlogger/%s?paginate=true",
+				opts.Cedar.BaseURL,
+				url.PathEscape(opts.ID),
+			)
+			assert.Equal(t, expectedURL, opts.parse())
 		})
 		t.Run("Meta", func(t *testing.T) {
 			opts.Meta = true
-			assert.Equal(t, fmt.Sprintf("%s/rest/v1/buildlogger/%s/meta%s", opts.CedarOpts.BaseURL, url.PathEscape(opts.ID)), opts.parse())
+			expectedURL := fmt.Sprintf(
+				"%s/rest/v1/buildlogger/%s/meta",
+				opts.Cedar.BaseURL,
+				url.PathEscape(opts.ID),
+			)
+			assert.Equal(t, expectedURL, opts.parse())
 		})
 	})
 	t.Run("TaskID", func(t *testing.T) {
 		opts := GetOptions{
-			CedarOpts: timber.GetOptions{
+			Cedar: timber.GetOptions{
 				BaseURL: "https://cedar.mongodb.com",
 			},
 			TaskID:        "task?",
@@ -220,8 +214,8 @@ func TestParse(t *testing.T) {
 		}
 		t.Run("Logs", func(t *testing.T) {
 			expectedURL := fmt.Sprintf(
-				"%s/rest/v1/buildlogger/task_id/%s?execution=3&start=%s&end=%s&proc_name=%s&tag=%s&tag=%s&tag=tag3&print_time=true&print_priority=true&tail=100&limit=100",
-				opts.CedarOpts.BaseURL,
+				"%s/rest/v1/buildlogger/task_id/%s?execution=3&start=%s&end=%s&proc_name=%s&tags=%s&tags=%s&tags=tag3&print_time=true&print_priority=true&n=100&limit=1000",
+				opts.Cedar.BaseURL,
 				url.PathEscape(opts.TaskID),
 				opts.Start.Format(time.RFC3339),
 				opts.End.Format(time.RFC3339),
@@ -234,8 +228,8 @@ func TestParse(t *testing.T) {
 		t.Run("Meta", func(t *testing.T) {
 			opts.Meta = true
 			expectedURL := fmt.Sprintf(
-				"%s/rest/v1/buildlogger/task_id/%s?execution=3&start=%s&end=%s&tag=%s&tag=%s&tag=tag3",
-				opts.CedarOpts.BaseURL,
+				"%s/rest/v1/buildlogger/task_id/%s/meta?execution=3&start=%s&end=%s&tags=%s&tags=%s&tags=tag3",
+				opts.Cedar.BaseURL,
 				url.PathEscape(opts.TaskID),
 				opts.Start.Format(time.RFC3339),
 				opts.End.Format(time.RFC3339),
@@ -247,7 +241,7 @@ func TestParse(t *testing.T) {
 	})
 	t.Run("TestName", func(t *testing.T) {
 		opts := GetOptions{
-			CedarOpts: timber.GetOptions{
+			Cedar: timber.GetOptions{
 				BaseURL: "https://cedar.mongodb.com",
 			},
 			TaskID:   "task?",
@@ -256,7 +250,7 @@ func TestParse(t *testing.T) {
 		t.Run("Logs", func(t *testing.T) {
 			expectedURL := fmt.Sprintf(
 				"%s/rest/v1/buildlogger/test_name/%s/%s?paginate=true",
-				opts.CedarOpts.BaseURL,
+				opts.Cedar.BaseURL,
 				url.PathEscape(opts.TaskID),
 				url.PathEscape(opts.TestName),
 			)
@@ -266,7 +260,7 @@ func TestParse(t *testing.T) {
 			opts.Meta = true
 			expectedURL := fmt.Sprintf(
 				"%s/rest/v1/buildlogger/test_name/%s/%s/meta",
-				opts.CedarOpts.BaseURL,
+				opts.Cedar.BaseURL,
 				url.PathEscape(opts.TaskID),
 				url.PathEscape(opts.TestName),
 			)
@@ -275,15 +269,15 @@ func TestParse(t *testing.T) {
 	})
 	t.Run("TaskIDAndGroupID", func(t *testing.T) {
 		opts := GetOptions{
-			CedarOpts: timber.GetOptions{
+			Cedar: timber.GetOptions{
 				BaseURL: "https://cedar.mongodb.com",
 			},
 			TaskID:  "task?",
 			GroupID: "group/group/group",
 		}
 		expectedURL := fmt.Sprintf(
-			"%s/rest/v1/buildlogger/task_id/%s/group/%s&paginate=true",
-			opts.CedarOpts.BaseURL,
+			"%s/rest/v1/buildlogger/task_id/%s/group/%s?paginate=true",
+			opts.Cedar.BaseURL,
 			url.PathEscape(opts.TaskID),
 			url.PathEscape(opts.GroupID),
 		)
@@ -291,7 +285,7 @@ func TestParse(t *testing.T) {
 	})
 	t.Run("TestNameAndGroupID", func(t *testing.T) {
 		opts := GetOptions{
-			CedarOpts: timber.GetOptions{
+			Cedar: timber.GetOptions{
 				BaseURL: "https://cedar.mongodb.com",
 			},
 			TaskID:   "task?",
@@ -300,125 +294,11 @@ func TestParse(t *testing.T) {
 		}
 		expectedURL := fmt.Sprintf(
 			"%s/rest/v1/buildlogger/test_name/%s/%s/group/%s?paginate=true",
-			opts.CedarOpts.BaseURL,
+			opts.Cedar.BaseURL,
 			url.PathEscape(opts.TaskID),
 			url.PathEscape(opts.TestName),
 			url.PathEscape(opts.GroupID),
 		)
 		assert.Equal(t, expectedURL, opts.parse())
 	})
-}
-
-func TestPaginatedReadCloser(t *testing.T) {
-	t.Run("PaginatedRoute", func(t *testing.T) {
-		handler := &mockHandler{pages: 3}
-		server := httptest.NewServer(handler)
-		handler.baseURL = server.URL
-
-		opts := timber.GetOptions{}
-		resp, err := opts.DoReq(context.TODO(), server.URL)
-		require.NoError(t, err)
-
-		var r io.ReadCloser
-		r = &paginatedReadCloser{
-			ctx:        context.TODO(),
-			header:     resp.Header,
-			ReadCloser: resp.Body,
-		}
-
-		data, err := ioutil.ReadAll(r)
-		require.NoError(t, err)
-		assert.Equal(t, "PAGINATED BODY PAGE 1\nPAGINATED BODY PAGE 2\nPAGINATED BODY PAGE 3\n", string(data))
-		assert.NoError(t, r.Close())
-	})
-	t.Run("NonPaginatedRoute", func(t *testing.T) {
-		handler := &mockHandler{}
-		server := httptest.NewServer(handler)
-		handler.baseURL = server.URL
-
-		opts := timber.GetOptions{}
-		resp, err := opts.DoReq(context.TODO(), server.URL)
-		require.NoError(t, err)
-
-		var r io.ReadCloser
-		r = &paginatedReadCloser{
-			ctx:        context.TODO(),
-			header:     resp.Header,
-			ReadCloser: resp.Body,
-		}
-
-		data, err := ioutil.ReadAll(r)
-		require.NoError(t, err)
-		assert.Equal(t, "NON-PAGINATED BODY PAGE", string(data))
-		assert.NoError(t, r.Close())
-	})
-	t.Run("SplitPageByteSlice", func(t *testing.T) {
-		handler := &mockHandler{pages: 2}
-		server := httptest.NewServer(handler)
-		handler.baseURL = server.URL
-
-		opts := timber.GetOptions{}
-		resp, err := opts.DoReq(context.TODO(), server.URL)
-		require.NoError(t, err)
-
-		var r io.ReadCloser
-		r = &paginatedReadCloser{
-			ctx:        context.TODO(),
-			header:     resp.Header,
-			ReadCloser: resp.Body,
-		}
-
-		p := make([]byte, 33) // 1.5X len of each page
-		n, err := r.Read(p)
-		require.NoError(t, err)
-		assert.Equal(t, len(p), n)
-		assert.Equal(t, "PAGINATED BODY PAGE 1\nPAGINATED B", string(p))
-		p = make([]byte, 33)
-		n, err = r.Read(p)
-		require.Equal(t, io.EOF, err)
-		assert.Equal(t, 11, n)
-		assert.Equal(t, "ODY PAGE 2\n", string(p[:11]))
-		assert.NoError(t, r.Close())
-	})
-}
-
-type mockHandler struct {
-	baseURL string
-	pages   int
-	count   int
-}
-
-func (h *mockHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if h.pages > 0 {
-		if h.count <= h.pages-1 {
-			w.Header().Set("Link", fmt.Sprintf("<%s>; rel=\"%s\"", h.baseURL, "next"))
-			_, _ = w.Write([]byte(fmt.Sprintf("PAGINATED BODY PAGE %d\n", h.count+1)))
-		}
-		h.count++
-	} else {
-		_, _ = w.Write([]byte("NON-PAGINATED BODY PAGE"))
-	}
-}
-
-func getParams(opts GetOptions) string {
-	params := fmt.Sprintf(
-		"?execution=%d&proc_name=%s&print_time=%v&print_priority=%v&n=%d&limit=%d&paginate=true",
-		opts.Execution,
-		url.QueryEscape(opts.ProcessName),
-		opts.PrintTime,
-		opts.PrintPriority,
-		opts.Tail,
-		opts.Limit,
-	)
-	if !opts.Start.IsZero() {
-		params += fmt.Sprintf("&start=%s", opts.Start.Format(time.RFC3339))
-	}
-	if !opts.End.IsZero() {
-		params += fmt.Sprintf("&end=%s", opts.End.Format(time.RFC3339))
-	}
-	for _, tag := range opts.Tags {
-		params += fmt.Sprintf("&tags=%s", tag)
-	}
-
-	return params
 }

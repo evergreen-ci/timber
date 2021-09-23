@@ -3,7 +3,7 @@ package testresults
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -25,7 +25,7 @@ const (
 // GetOptions specify the required and optional information to create the test
 // results HTTP GET request to cedar.
 type GetOptions struct {
-	CedarOpts timber.GetOptions
+	Cedar timber.GetOptions
 
 	// Request information. See cedar's REST documentation for more
 	// information:
@@ -51,7 +51,7 @@ type GetOptions struct {
 func (opts GetOptions) Validate() error {
 	catcher := grip.NewBasicCatcher()
 
-	catcher.Add(opts.CedarOpts.Validate())
+	catcher.Add(opts.Cedar.Validate())
 	catcher.NewWhen(opts.TaskID == "", "must provide a task id")
 	catcher.NewWhen(opts.FailedSample && opts.Stats, "cannot request the failed sample and stats, must be one or the other")
 
@@ -59,7 +59,7 @@ func (opts GetOptions) Validate() error {
 }
 
 func (opts GetOptions) parse() string {
-	urlString := fmt.Sprintf("%s/rest/v1/test_results/task_id/%s", opts.CedarOpts.BaseURL, url.PathEscape(opts.TaskID))
+	urlString := fmt.Sprintf("%s/rest/v1/test_results/task_id/%s", opts.Cedar.BaseURL, url.PathEscape(opts.TaskID))
 	if opts.FailedSample {
 		urlString += "/failed_sample"
 	}
@@ -108,25 +108,18 @@ func (opts GetOptions) parse() string {
 }
 
 // Get returns with the test results requested via HTTP to a cedar service.
-func Get(ctx context.Context, opts GetOptions) ([]byte, error) {
+func Get(ctx context.Context, opts GetOptions) (io.ReadCloser, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	catcher := grip.NewBasicCatcher()
-	resp, err := opts.CedarOpts.DoReq(ctx, opts.parse())
+	resp, err := opts.Cedar.DoReq(ctx, opts.parse())
 	if err != nil {
 		return nil, errors.Wrap(err, "requesting test results from cedar")
 	}
+
 	if resp.StatusCode != http.StatusOK {
-		catcher.Add(resp.Body.Close())
-		catcher.Add(errors.Errorf("failed to fetch test results with resp '%s'", resp.Status))
-		return nil, catcher.Resolve()
+		return nil, errors.Errorf("failed to fetch test results with resp '%s'", resp.Status)
 	}
-
-	data, err := ioutil.ReadAll(resp.Body)
-	catcher.Add(err)
-	catcher.Add(resp.Body.Close())
-
-	return data, catcher.Resolve()
+	return timber.NewPaginatedReadCloser(ctx, resp, opts.Cedar), nil
 }
