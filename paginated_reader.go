@@ -13,7 +13,7 @@ import (
 // io.ReadCloser from an HTTP response. The reader will first exhaust the
 // underlying reader, then, using the HTTP response headers, request the next
 // page, if any, and replace the underlying reader. An io.EOF error is returned
-// when either the underlying reader is exhausted and the HTTP repsonse header
+// when either the underlying reader is exhausted and the HTTP response header
 // does not contain a "next" field, or the "next" field's URL returns no data.
 type paginatedReadCloser struct {
 	ctx    context.Context
