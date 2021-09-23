@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"context"
+	"golang.org/x/net/context"
 	"golang.org/x/oauth2/internal"
 )
 

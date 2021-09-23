@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"context"
+	"golang.org/x/net/context"
 )
 
 // Token represents the crendentials used to authorize

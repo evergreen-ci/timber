@@ -11,7 +11,7 @@ package oauth2
 import (
 	"net/http"
 
-	"context"
+	"golang.org/x/net/context"
 	"golang.org/x/oauth2/internal"
 	"google.golang.org/appengine/urlfetch"
 )

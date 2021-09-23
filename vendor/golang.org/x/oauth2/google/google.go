@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/compute/metadata"
-	"context"
+	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/jwt"
 )

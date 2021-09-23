@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"testing"
 
-	"context"
+	"golang.org/x/net/context"
 )
 
 func TestContextClient(t *testing.T) {

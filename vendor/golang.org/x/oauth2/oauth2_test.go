@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"context"
+	"golang.org/x/net/context"
 )
 
 type mockTransport struct {
