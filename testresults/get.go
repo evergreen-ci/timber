@@ -58,7 +58,7 @@ func (opts GetOptions) Validate() error {
 	return catcher.Resolve()
 }
 
-func (opts GetOptions) getURL() string {
+func (opts GetOptions) parse() string {
 	urlString := fmt.Sprintf("%s/rest/v1/test_results/task_id/%s", opts.CedarOpts.BaseURL, url.PathEscape(opts.TaskID))
 	if opts.FailedSample {
 		urlString += "/failed_sample"
@@ -75,24 +75,24 @@ func (opts GetOptions) getURL() string {
 		params = append(params, "display_task=true")
 	}
 	if opts.TestName != "" {
-		params = append(params, fmt.Sprintf("test_name=%s", opts.TestName))
+		params = append(params, fmt.Sprintf("test_name=%s", url.QueryEscape(opts.TestName)))
 	}
 	if len(opts.Statuses) > 0 {
 		for _, status := range opts.Statuses {
-			params = append(params, fmt.Sprintf("status=%s", status))
+			params = append(params, fmt.Sprintf("status=%s", url.QueryEscape(status)))
 		}
 	}
 	if opts.GroupID != "" {
-		params = append(params, fmt.Sprintf("group_id=%s", opts.GroupID))
+		params = append(params, fmt.Sprintf("group_id=%s", url.QueryEscape(opts.GroupID)))
 	}
 	if opts.SortBy != "" {
-		params = append(params, fmt.Sprintf("sort_by=%s", opts.SortBy))
+		params = append(params, fmt.Sprintf("sort_by=%s", url.QueryEscape(opts.SortBy)))
 	}
 	if opts.SortOrderDSC {
 		params = append(params, "sort_order_dsc=true")
 	}
 	if opts.BaseTaskID != "" {
-		params = append(params, fmt.Sprintf("base_task_id=%s", opts.BaseTaskID))
+		params = append(params, fmt.Sprintf("base_task_id=%s", url.QueryEscape(opts.BaseTaskID)))
 	}
 	if opts.Limit > 0 {
 		params = append(params, fmt.Sprintf("limit=%d", opts.Limit))
@@ -114,7 +114,7 @@ func Get(ctx context.Context, opts GetOptions) ([]byte, error) {
 	}
 
 	catcher := grip.NewBasicCatcher()
-	resp, err := opts.CedarOpts.DoReq(ctx, opts.getURL())
+	resp, err := opts.CedarOpts.DoReq(ctx, opts.parse())
 	if err != nil {
 		return nil, errors.Wrap(err, "requesting test results from cedar")
 	}

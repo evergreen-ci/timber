@@ -1,9 +1,12 @@
 package testresults
 
 import (
+	"fmt"
+	"net/url"
 	"testing"
 
 	"github.com/evergreen-ci/timber"
+	"github.com/evergreen-ci/utility"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -82,10 +85,9 @@ func TestGetOptionsValidate(t *testing.T) {
 	}
 }
 
-func TestGetURL(t *testing.T) {
+func TestParse(t *testing.T) {
 	cedarOpts := timber.GetOptions{BaseURL: "https://url.com"}
 	baseURL := cedarOpts.BaseURL + "/rest/v1/test_results"
-	exec := 1
 	for _, test := range []struct {
 		name        string
 		opts        GetOptions
@@ -102,20 +104,29 @@ func TestGetURL(t *testing.T) {
 		{
 			name: "TaskIDWithParams",
 			opts: GetOptions{
-				CedarOpts:    cedarOpts,
-				TaskID:       "task",
-				Execution:    &exec,
+				CedarOpts: cedarOpts,
+				TaskID:    "task?",
+				Execution: utility.ToIntPtr(1), utility.ToIntPtr(1),
 				DisplayTask:  true,
-				TestName:     "test",
-				Statuses:     []string{"fail", "silentfail"},
-				GroupID:      "group",
-				SortBy:       "sort",
+				TestName:     "test?",
+				Statuses:     []string{"fail&", "silentfail"},
+				GroupID:      "group/1?",
+				SortBy:       "sort/by",
 				SortOrderDSC: true,
-				BaseTaskID:   "base_task",
+				BaseTaskID:   "base_task?",
 				Limit:        100,
 				Page:         5,
 			},
-			expectedURL: baseURL + "/task_id/task?execution=1&display_task=true&test_name=test&status=fail&status=silentfail&group_id=group&sort_by=sort&sort_order_dsc=true&base_task_id=base_task&limit=100&page=5",
+			expectedURL: fmt.Sprintf(
+				"%s/task_id/%s?execution=1&display_task=true&test_name=%s&status=%s&status=silentfail&group_id=%s&sort_by=%s&sort_order_dsc=true&base_task_id=%s&limit=100&page=5",
+				baseURL,
+				url.PathEscape("task?"),
+				url.QueryEscape("test?"),
+				url.QueryEscape("fail&"),
+				url.QueryEscape("group/1?"),
+				url.QueryEscape("sort/by"),
+				url.QueryEscape("base_task?"),
+			),
 		},
 		{
 			name: "FailedSample",
@@ -137,7 +148,7 @@ func TestGetURL(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expectedURL, test.opts.getURL())
+			assert.Equal(t, test.expectedURL, test.opts.parse())
 		})
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/evergreen-ci/timber"
@@ -14,19 +15,22 @@ import (
 	"github.com/pkg/errors"
 )
 
-// BuildloggerGetOptions specify the required and optional information to
-// create the buildlogger HTTP GET request to cedar.
-type BuildloggerGetOptions struct {
+// GetOptions specify the required and optional information to create the
+// buildlogger HTTP GET request to cedar.
+type GetOptions struct {
 	CedarOpts timber.GetOptions
 
 	// Request information. See cedar's REST documentation for more
 	// information:
 	// `https://github.com/evergreen-ci/cedar/wiki/Rest-V1-Usage`.
-	ID            string
-	TaskID        string
-	TestName      string
-	GroupID       string
-	Execution     int
+	ID       string
+	TaskID   string
+	TestName string
+	GroupID  string
+	Meta     bool
+
+	// Query parameters.
+	Execution     *int
 	Start         time.Time
 	End           time.Time
 	ProcessName   string
@@ -35,11 +39,10 @@ type BuildloggerGetOptions struct {
 	PrintPriority bool
 	Tail          int
 	Limit         int
-	Meta          bool
 }
 
 // Validate ensures BuildloggerGetOptions is configured correctly.
-func (opts *BuildloggerGetOptions) Validate() error {
+func (opts GetOptions) Validate() error {
 	catcher := grip.NewBasicCatcher()
 
 	catcher.Add(opts.CedarOpts.Validate())
@@ -52,51 +55,37 @@ func (opts *BuildloggerGetOptions) Validate() error {
 	return catcher.Resolve()
 }
 
-// GetLogs returns a ReadCloser with the logs or log metadata requested via
-// HTTP to a cedar service.
-func GetLogs(ctx context.Context, opts BuildloggerGetOptions) (io.ReadCloser, error) {
-	urlString, err := opts.parse()
-	if err != nil {
-		return nil, errors.Wrap(err, "problem parsing options")
+func (opts GetOptions) parse() string {
+	params := []string{}
+	if opts.Execution != nil {
+		params = append(params, fmt.Sprintf("execution=%d", *opts.Execution))
 	}
-
-	resp, err := opts.CedarOpts.DoReq(ctx, urlString)
-	if err == nil {
-		if resp.StatusCode == http.StatusOK {
-			return &paginatedReadCloser{
-				ctx:        ctx,
-				header:     resp.Header,
-				opts:       opts.CedarOpts,
-				ReadCloser: resp.Body,
-			}, nil
-		}
-		return nil, errors.Errorf("failed to fetch logs with resp '%s'", resp.Status)
-	}
-	return nil, errors.Wrapf(err, "fetch logs request failed")
-}
-
-func (opts *BuildloggerGetOptions) parse() (string, error) {
-	if err := opts.Validate(); err != nil {
-		return "", errors.WithStack(err)
-	}
-
-	params := fmt.Sprintf(
-		"?execution=%d&proc_name=%s&print_time=%v&print_priority=%v&n=%d&limit=%d&paginate=true",
-		opts.Execution,
-		url.QueryEscape(opts.ProcessName),
-		opts.PrintTime,
-		opts.PrintPriority,
-		opts.Tail,
-		opts.Limit,
-	)
 	if !opts.Start.IsZero() {
-		params += fmt.Sprintf("&start=%s", opts.Start.Format(time.RFC3339))
+		params = append(params, fmt.Sprintf("start=%s", opts.Start.Format(time.RFC3339)))
 	}
 	if !opts.End.IsZero() {
-		params += fmt.Sprintf("&end=%s", opts.End.Format(time.RFC3339))
+		params = append(params, fmt.Sprintf("end=%s", opts.End.Format(time.RFC3339)))
+	}
+	if opts.ProcessName != "" && !opts.Meta {
+		params = append(params, fmt.Sprintf("proc_name=%s", url.QueryEscape(opts.ProcessName)))
 	}
 	for _, tag := range opts.Tags {
-		params += fmt.Sprintf("&tags=%s", url.QueryEscape(tag))
+		params = append(params, fmt.Sprintf("tags=%s", url.QueryEscape(tag)))
+	}
+	if opts.PrintTime && !opts.Meta {
+		params = append(params, "print_time=true")
+	}
+	if opts.PrintPriority && !opts.Meta {
+		params = append(params, "print_priority=true")
+	}
+	if opts.Tail > 0 && !opts.Meta {
+		params = append(params, fmt.Sprintf("n=%d", opts.Tail))
+	}
+	if opts.Limit > 0 && !opts.Meta {
+		params = append(params, fmt.Sprintf("limit=%d", opts.Limit))
+	}
+	if opts.Limit <= 0 && opts.Tail <= 0 && !opts.Meta {
+		params = append(params, "paginate=true")
 	}
 
 	urlString := fmt.Sprintf("%s/rest/v1/buildlogger", opts.CedarOpts.BaseURL)
@@ -112,9 +101,33 @@ func (opts *BuildloggerGetOptions) parse() (string, error) {
 	} else if opts.Meta {
 		urlString += "/meta"
 	}
-	urlString += params
+	if len(params) > 0 {
+		urlString += "?" + strings.Join(params, "&")
+	}
 
-	return urlString, nil
+	return urlString
+}
+
+// Get returns a ReadCloser with the logs or log metadata requested via HTTP to
+// a cedar service.
+func Get(ctx context.Context, opts GetOptions) (io.ReadCloser, error) {
+	if err := opts.Validate(); err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	resp, err := opts.CedarOpts.DoReq(ctx, opts.parse())
+	if err == nil {
+		if resp.StatusCode == http.StatusOK {
+			return &paginatedReadCloser{
+				ctx:        ctx,
+				header:     resp.Header,
+				opts:       opts.CedarOpts,
+				ReadCloser: resp.Body,
+			}, nil
+		}
+		return nil, errors.Errorf("failed to fetch logs with resp '%s'", resp.Status)
+	}
+	return nil, errors.Wrapf(err, "fetch logs request failed")
 }
 
 type paginatedReadCloser struct {
@@ -154,11 +167,11 @@ func (r *paginatedReadCloser) getNextPage() error {
 	if ok {
 		resp, err := r.opts.DoReq(r.ctx, group.URI)
 		if err != nil {
-			return errors.Wrap(err, "problem requesting next page")
+			return errors.Wrap(err, "requesting next page")
 		}
 
 		if err = r.Close(); err != nil {
-			return errors.Wrap(err, "problem closing last response reader")
+			return errors.Wrap(err, "closing last response reader")
 		}
 
 		r.header = resp.Header
