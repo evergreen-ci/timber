@@ -15,11 +15,11 @@ import (
 )
 
 // GetOptions specify the required and optional information to create the
-// buildlogger HTTP GET request to cedar.
+// buildlogger HTTP GET request to Cedar.
 type GetOptions struct {
 	Cedar timber.GetOptions
 
-	// Request information. See cedar's REST documentation for more
+	// Request information. See Cedar's REST documentation for more
 	// information:
 	// `https://github.com/evergreen-ci/cedar/wiki/Rest-V1-Usage`.
 	ID       string
@@ -107,8 +107,8 @@ func (opts GetOptions) parse() string {
 	return urlString
 }
 
-// Get returns a ReadCloser with the logs or log metadata requested via HTTP to
-// a cedar service.
+// Get returns an io.ReadCloser with the logs or log metadata requested via
+// HTTP to a Cedar service.
 func Get(ctx context.Context, opts GetOptions) (io.ReadCloser, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, errors.WithStack(err)

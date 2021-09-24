@@ -23,11 +23,11 @@ const (
 )
 
 // GetOptions specify the required and optional information to create the test
-// results HTTP GET request to cedar.
+// results HTTP GET request to Cedar.
 type GetOptions struct {
 	Cedar timber.GetOptions
 
-	// Request information. See cedar's REST documentation for more
+	// Request information. See Cedar's REST documentation for more
 	// information:
 	// `https://github.com/evergreen-ci/cedar/wiki/Rest-V1-Usage`.
 	TaskID       string
@@ -107,7 +107,8 @@ func (opts GetOptions) parse() string {
 	return urlString
 }
 
-// Get returns with the test results requested via HTTP to a cedar service.
+// Get returns an io.ReadCloser with the test results requested via HTTP to a
+// Cedar service.
 func Get(ctx context.Context, opts GetOptions) (io.ReadCloser, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, errors.WithStack(err)

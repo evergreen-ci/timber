@@ -9,12 +9,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// paginatedReadCloser implements the io.ReadCloser interface, wrapping the
-// io.ReadCloser from an HTTP response. The reader will first exhaust the
-// underlying reader, then, using the HTTP response headers, request the next
-// page, if any, and replace the underlying reader. An io.EOF error is returned
-// when either the underlying reader is exhausted and the HTTP response header
-// does not contain a "next" field, or the "next" field's URL returns no data.
 type paginatedReadCloser struct {
 	ctx    context.Context
 	header http.Header
@@ -23,10 +17,11 @@ type paginatedReadCloser struct {
 	io.ReadCloser
 }
 
-// NewPaginatedReadCloser returns a new paginated read closer with the body and
-// header of the given HTTP response. The GetOptions are used to make any
-// subsequent page requests to the Cedar service.
-func NewPaginatedReadCloser(ctx context.Context, resp *http.Response, opts GetOptions) io.ReadCloser {
+// NewPaginatedReadCloser returns an io.ReadCloser implementation for paginated
+// HTTP responses from a Cedar service. It is safe to pass in a non-paginated
+// response, thus the caller need not check for the appropriate header keys.
+// GetOptions is used to make any subsequent page requests.
+func NewPaginatedReadCloser(ctx context.Context, resp *http.Response, opts GetOptions) *paginatedReadCloser {
 	return &paginatedReadCloser{
 		ctx:        ctx,
 		header:     resp.Header,
@@ -35,6 +30,13 @@ func NewPaginatedReadCloser(ctx context.Context, resp *http.Response, opts GetOp
 	}
 }
 
+// Read reads the underlying HTTP response body. Once the body is read, the
+// HTTP response header is used to request the next page, if any. If a
+// subsequent page is successfully requested, the previous body is closed and
+// both the body and header are replaced with the new response. An io.EOF error
+// is returned when the current response body is read completely and either the
+// response header does not contain a "next" key or the "next" key's URL
+// returns no data.
 func (r *paginatedReadCloser) Read(p []byte) (int, error) {
 	if r.ReadCloser == nil {
 		return 0, io.EOF
