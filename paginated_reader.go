@@ -23,7 +23,9 @@ type paginatedReadCloser struct {
 	io.ReadCloser
 }
 
-// NewPaginatedReadCloser returns a new paginated read closer.
+// NewPaginatedReadCloser returns a new paginated read closer with the body and
+// header of the given HTTP response. The GetOptions are used to make any
+// subsequent page requests to the Cedar service.
 func NewPaginatedReadCloser(ctx context.Context, resp *http.Response, opts GetOptions) io.ReadCloser {
 	return &paginatedReadCloser{
 		ctx:        ctx,
