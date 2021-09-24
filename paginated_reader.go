@@ -34,7 +34,7 @@ func NewPaginatedReadCloser(ctx context.Context, resp *http.Response, opts GetOp
 // HTTP response header is used to request the next page, if any. If a
 // subsequent page is successfully requested, the previous body is closed and
 // both the body and header are replaced with the new response. An io.EOF error
-// is returned when the current response body is read completely and either the
+// is returned when the current response body is exhausted and either the
 // response header does not contain a "next" key or the "next" key's URL
 // returns no data.
 func (r *paginatedReadCloser) Read(p []byte) (int, error) {
