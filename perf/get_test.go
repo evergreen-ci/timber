@@ -16,7 +16,8 @@ func TestGetOptionsValidate(t *testing.T) {
 		{
 			name: "InvalidCedarOpts",
 			opts: GetOptions{
-				TaskID: "task",
+				TaskID:    "task",
+				Execution: 0,
 			},
 			hasErr: true,
 		},
@@ -26,16 +27,29 @@ func TestGetOptionsValidate(t *testing.T) {
 				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
+				Execution: 0,
 			},
 			hasErr: true,
 		},
+		{
+			name: "MissingExecution",
+			opts: GetOptions{
+				Cedar: timber.GetOptions{
+					BaseURL: "https://url.com",
+				},
+				TaskID: "task",
+			},
+			hasErr: true,
+		},
+
 		{
 			name: "TaskID",
 			opts: GetOptions{
 				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
-				TaskID: "task",
+				TaskID:    "task",
+				Execution: 0,
 			},
 		},
 	} {
@@ -61,10 +75,11 @@ func TestParse(t *testing.T) {
 		{
 			name: "TaskID",
 			opts: GetOptions{
-				Cedar:  cedarOpts,
-				TaskID: "task",
+				Cedar:     cedarOpts,
+				TaskID:    "task",
+				Execution: 0,
 			},
-			expectedURL: baseURL + "/task_id/task/count",
+			expectedURL: baseURL + "/task_id/task/0/count",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
