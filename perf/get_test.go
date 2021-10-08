@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var zero int = 0
+
 func TestGetOptionsValidate(t *testing.T) {
 	for _, test := range []struct {
 		name   string
@@ -17,7 +19,7 @@ func TestGetOptionsValidate(t *testing.T) {
 			name: "InvalidCedarOpts",
 			opts: GetOptions{
 				TaskID:    "task",
-				Execution: 0,
+				Execution: &zero,
 			},
 			hasErr: true,
 		},
@@ -27,7 +29,7 @@ func TestGetOptionsValidate(t *testing.T) {
 				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
-				Execution: 0,
+				Execution: &zero,
 			},
 			hasErr: true,
 		},
@@ -49,7 +51,7 @@ func TestGetOptionsValidate(t *testing.T) {
 					BaseURL: "https://url.com",
 				},
 				TaskID:    "task",
-				Execution: 0,
+				Execution: &zero,
 			},
 		},
 	} {
@@ -77,7 +79,7 @@ func TestParse(t *testing.T) {
 			opts: GetOptions{
 				Cedar:     cedarOpts,
 				TaskID:    "task",
-				Execution: 0,
+				Execution: &zero,
 			},
 			expectedURL: baseURL + "/task_id/task/0/count",
 		},

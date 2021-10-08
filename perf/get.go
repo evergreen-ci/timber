@@ -21,7 +21,7 @@ type GetOptions struct {
 	// information:
 	// `https://github.com/evergreen-ci/cedar/wiki/Rest-V1-Usage`.
 	TaskID    string
-	Execution int
+	Execution *int
 }
 
 // Validate ensures TestResultsGetOptions is configured correctly.
@@ -30,13 +30,13 @@ func (opts GetOptions) Validate() error {
 
 	catcher.Add(opts.Cedar.Validate())
 	catcher.NewWhen(opts.TaskID == "", "must provide a task id")
-	catcher.NewWhen(opts.Execution == "", "must provide an execution #")
+	catcher.NewWhen(opts.Execution == nil, "must provide an execution #")
 
 	return catcher.Resolve()
 }
 
 func (opts GetOptions) parse() string {
-	urlString := fmt.Sprintf("%s/rest/v1/test_results/task_id/%s/%d/count", opts.Cedar.BaseURL, url.PathEscape(opts.TaskID), opts.Excecution)
+	urlString := fmt.Sprintf("%s/rest/v1/test_results/task_id/%s/%d/count", opts.Cedar.BaseURL, url.PathEscape(opts.TaskID), *opts.Execution)
 	return urlString
 }
 
