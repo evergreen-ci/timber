@@ -8,6 +8,7 @@ import (
 	"net/url"
 
 	"github.com/evergreen-ci/timber"
+	"github.com/evergreen-ci/utility"
 	"github.com/mongodb/grip"
 	"github.com/pkg/errors"
 )
@@ -36,7 +37,7 @@ func (opts GetOptions) Validate() error {
 }
 
 func (opts GetOptions) parse() string {
-	urlString := fmt.Sprintf("%s/rest/v1/test_results/task_id/%s/%d/count", opts.Cedar.BaseURL, url.PathEscape(opts.TaskID), *opts.Execution)
+	urlString := fmt.Sprintf("%s/rest/v1/test_results/task_id/%s/%d/count", opts.Cedar.BaseURL, url.PathEscape(opts.TaskID), utility.FromIntPtr(opts.Execution))
 	return urlString
 }
 

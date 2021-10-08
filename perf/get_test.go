@@ -4,10 +4,9 @@ import (
 	"testing"
 
 	"github.com/evergreen-ci/timber"
+	"github.com/evergreen-ci/utility"
 	"github.com/stretchr/testify/assert"
 )
-
-var zero int = 0
 
 func TestGetOptionsValidate(t *testing.T) {
 	for _, test := range []struct {
@@ -19,7 +18,7 @@ func TestGetOptionsValidate(t *testing.T) {
 			name: "InvalidCedarOpts",
 			opts: GetOptions{
 				TaskID:    "task",
-				Execution: &zero,
+				Execution: utility.ToIntPtr(0),
 			},
 			hasErr: true,
 		},
@@ -29,7 +28,7 @@ func TestGetOptionsValidate(t *testing.T) {
 				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
-				Execution: &zero,
+				Execution: utility.ToIntPtr(0),
 			},
 			hasErr: true,
 		},
@@ -51,7 +50,7 @@ func TestGetOptionsValidate(t *testing.T) {
 					BaseURL: "https://url.com",
 				},
 				TaskID:    "task",
-				Execution: &zero,
+				Execution: utility.ToIntPtr(0),
 			},
 		},
 	} {
@@ -79,7 +78,7 @@ func TestParse(t *testing.T) {
 			opts: GetOptions{
 				Cedar:     cedarOpts,
 				TaskID:    "task",
-				Execution: &zero,
+				Execution: utility.ToIntPtr(0),
 			},
 			expectedURL: baseURL + "/task_id/task/0/count",
 		},
