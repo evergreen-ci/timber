@@ -1,4 +1,4 @@
-package testresults
+package perf
 
 import (
 	"context"
@@ -25,7 +25,7 @@ type GetOptions struct {
 	Execution *int
 }
 
-// Validate ensures TestResultsGetOptions is configured correctly.
+// Validate ensures GetOptions is configured correctly.
 func (opts GetOptions) Validate() error {
 	catcher := grip.NewBasicCatcher()
 
@@ -37,7 +37,7 @@ func (opts GetOptions) Validate() error {
 }
 
 func (opts GetOptions) parse() string {
-	urlString := fmt.Sprintf("%s/rest/v1/test_results/task_id/%s/%d/count", opts.Cedar.BaseURL, url.PathEscape(opts.TaskID), utility.FromIntPtr(opts.Execution))
+	urlString := fmt.Sprintf("%s/rest/v1/perf/task_id/%s/%d/count", opts.Cedar.BaseURL, url.PathEscape(opts.TaskID), utility.FromIntPtr(opts.Execution))
 	return urlString
 }
 

@@ -1,4 +1,4 @@
-package testresults
+package perf
 
 import (
 	"testing"
@@ -67,7 +67,7 @@ func TestGetOptionsValidate(t *testing.T) {
 
 func TestParse(t *testing.T) {
 	cedarOpts := timber.GetOptions{BaseURL: "https://url.com"}
-	baseURL := cedarOpts.BaseURL + "/rest/v1/test_results"
+	baseURL := cedarOpts.BaseURL + "/rest/v1/perf"
 	for _, test := range []struct {
 		name        string
 		opts        GetOptions
