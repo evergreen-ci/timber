@@ -13,8 +13,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// GetOptions specify the required and optional information to create the test
-// results HTTP GET request to Cedar.
+// GetOptions specifies the required and optional information to create the
+// perf HTTP GET request to Cedar.
 type GetOptions struct {
 	Cedar timber.GetOptions
 
@@ -23,6 +23,7 @@ type GetOptions struct {
 	// `https://github.com/evergreen-ci/cedar/wiki/Rest-V1-Usage`.
 	TaskID    string
 	Execution *int
+	Count     bool
 }
 
 // Validate ensures GetOptions is configured correctly.
@@ -37,7 +38,10 @@ func (opts GetOptions) Validate() error {
 }
 
 func (opts GetOptions) parse() string {
-	urlString := fmt.Sprintf("%s/rest/v1/perf/task_id/%s/%d/count", opts.Cedar.BaseURL, url.PathEscape(opts.TaskID), utility.FromIntPtr(opts.Execution))
+	urlString := fmt.Sprintf("%s/rest/v1/perf/task_id/%s", opts.Cedar.BaseURL, url.PathEscape(opts.TaskID))
+	if opts.Count {
+		urlString += fmt.Sprintf("/%d/count", utility.FromIntPtr(opts.Execution))
+	}
 	return urlString
 }
 
