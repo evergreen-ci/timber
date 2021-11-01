@@ -85,7 +85,7 @@ func TestParse(t *testing.T) {
 				Execution: utility.ToIntPtr(0),
 				Count:     true,
 			},
-			expectedURL: baseURL + "/task_id/task/0/count",
+			expectedURL: baseURL + "/task_id/task/count?execution=0",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
