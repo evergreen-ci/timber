@@ -11,7 +11,7 @@ require (
 	github.com/peterhellberg/link v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.7.0
-	go.mongodb.org/mongo-driver v1.0.1-0.20190418210910-305bc4a5e413
+	go.mongodb.org/mongo-driver v1.7.4
 	google.golang.org/grpc v1.41.0
 	gopkg.in/yaml.v2 v2.4.0
 )
