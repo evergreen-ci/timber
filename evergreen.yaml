@@ -96,6 +96,16 @@ tasks:
     tags: ["report"]
     name: lint-testutil
 
+  - name: verify-mod-tidy
+    tags: ["report"]
+    commands:
+      - command: git.get_project
+        type: system
+        params:
+          directory: timber
+      - func: run-make
+        vars: { target: "${task_name}" }
+
   - <<: *run-build
     tags: [ "report" ]
     name: coverage-html
