@@ -29,11 +29,15 @@ type GetSampleOptions struct {
 // and regexes to filter the test names by.
 type TestSampleOptions struct {
 	Tasks        []TaskInfo `json:"tasks"`
-	RegexFilters []string   `json:"regex_filters"`
+	RegexFilters []string   `json:"regex_filters,omitempty"`
 }
 
 func (opts TestSampleOptions) validate() error {
 	catcher := grip.NewBasicCatcher()
+
+	if len(opts.Tasks) == 0 {
+		catcher.Add(errors.New("must specify tasks"))
+	}
 
 	for _, info := range opts.Tasks {
 		catcher.Add(info.validate())
