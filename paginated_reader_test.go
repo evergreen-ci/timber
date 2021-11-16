@@ -20,7 +20,7 @@ func TestPaginatedReadCloser(t *testing.T) {
 		handler.baseURL = server.URL
 
 		opts := GetOptions{}
-		resp, err := opts.DoReq(context.TODO(), server.URL)
+		resp, err := opts.DoReq(context.TODO(), server.URL, nil)
 		require.NoError(t, err)
 
 		var r io.ReadCloser
@@ -41,7 +41,7 @@ func TestPaginatedReadCloser(t *testing.T) {
 		handler.baseURL = server.URL
 
 		opts := GetOptions{}
-		resp, err := opts.DoReq(context.TODO(), server.URL)
+		resp, err := opts.DoReq(context.TODO(), server.URL, nil)
 		require.NoError(t, err)
 
 		var r io.ReadCloser
@@ -62,7 +62,7 @@ func TestPaginatedReadCloser(t *testing.T) {
 		handler.baseURL = server.URL
 
 		opts := GetOptions{}
-		resp, err := opts.DoReq(context.TODO(), server.URL)
+		resp, err := opts.DoReq(context.TODO(), server.URL, nil)
 		require.NoError(t, err)
 
 		var r io.ReadCloser

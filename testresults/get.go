@@ -136,7 +136,7 @@ func get(ctx context.Context, opts GetOptions) (*http.Response, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	resp, err := opts.Cedar.DoReq(ctx, opts.parse())
+	resp, err := opts.Cedar.DoReq(ctx, opts.parse(), nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "requesting test results from cedar")
 	}
