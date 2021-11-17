@@ -108,7 +108,7 @@ tasks:
 
   - <<: *run-build
     tags: [ "report" ]
-    name: coverage-html
+    name: html-coverage
 
   - <<: *run-build
     tags: ["test"]
