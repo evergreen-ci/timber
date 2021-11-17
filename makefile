@@ -60,7 +60,7 @@ $(shell mkdir -p $(buildDir))
 # start lint setup targets
 $(buildDir)/golangci-lint:
 	@curl --retry 10 --retry-max-time 60 -sSfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(buildDir) v1.40.0 >/dev/null 2>&1
-$(buildDir)/run-linter:  cmd/run-linter/run-linter.go $(buildDir)/golangci-lint
+$(buildDir)/run-linter: cmd/run-linter/run-linter.go $(buildDir)/golangci-lint
 	@$(gobin) build -o $@ $<
 # end lint setup targets
 
@@ -68,8 +68,8 @@ $(buildDir)/run-linter:  cmd/run-linter/run-linter.go $(buildDir)/golangci-lint
 testOutput := $(foreach target,$(testPackages),$(buildDir)/output.$(target).test)
 lintOutput := $(foreach target,$(packages),$(buildDir)/output.$(target).lint)
 coverageOutput := $(foreach target,$(testPackages),$(buildDir)/output.$(target).coverage)
-coverageHtmlOutput := $(foreach target,$(testPackages),$(buildDir)/output.$(target).coverage.html)
-.PRECIOUS:$(coverageOutput) $(coverageHtmlOutput) $(lintOutput) $(testOutput)
+htmlCoverageOutput := $(foreach target,$(testPackages),$(buildDir)/output.$(target).coverage.html)
+.PRECIOUS: $(coverageOutput) $(htmlCoverageOutput) $(lintOutput) $(testOutput)
 # end output files
 
 # start basic development operations
@@ -79,11 +79,11 @@ test: $(testOutput)
 	
 coverage: $(coverageOutput)
 	
-coverage-html: $(coverageHtmlOutput)
+html-coverage: $(htmlCoverageOutput)
 	
 lint: $(lintOutput)
 	
-phony += compile lint test coverage coverage-html
+phony += compile lint test coverage html-coverage
 
 # start convenience targets for running tests and coverage tasks on a
 # specific package.
@@ -100,9 +100,6 @@ lint-%:$(buildDir)/output.%.lint
 
 # start test and coverage artifacts
 testArgs := -v
-ifeq (,$(DISABLE_COVERAGE))
-	testArgs += -cover
-endif
 ifneq (,$(RACE_DETECTOR))
 	testArgs += -race
 endif
