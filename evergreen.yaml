@@ -7,9 +7,10 @@ ignore:
 #######################################
 variables:
   - &run-build
-    # runs a build operations. The task name in evergreen should
+    # runs a build operation. The task name in evergreen should
     # correspond to a make target for the build operation.
     name: test
+    must_have_test_results: true
     commands:
       - func: get-project-and-modules
       - func: run-make
