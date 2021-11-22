@@ -114,7 +114,7 @@ func Get(ctx context.Context, opts GetOptions) (io.ReadCloser, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	resp, err := opts.Cedar.DoReq(ctx, opts.parse())
+	resp, err := opts.Cedar.DoReq(ctx, opts.parse(), nil)
 	if err != nil {
 		return nil, errors.Wrapf(err, "fetch logs request failed")
 	}

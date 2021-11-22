@@ -64,7 +64,7 @@ func (r *paginatedReadCloser) Read(p []byte) (int, error) {
 func (r *paginatedReadCloser) getNextPage() error {
 	group, ok := link.ParseHeader(r.header)["next"]
 	if ok {
-		resp, err := r.opts.DoReq(r.ctx, group.URI)
+		resp, err := r.opts.DoReq(r.ctx, group.URI, nil)
 		if err != nil {
 			return errors.Wrap(err, "requesting next page")
 		}

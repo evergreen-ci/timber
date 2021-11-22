@@ -2,6 +2,7 @@ package timber
 
 import (
 	"context"
+	"io"
 	"net/http"
 
 	"github.com/evergreen-ci/utility"
@@ -30,8 +31,8 @@ func (opts GetOptions) Validate() error {
 }
 
 // DoReq makes an HTTP request to the cedar service.
-func (opts GetOptions) DoReq(ctx context.Context, url string) (*http.Response, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+func (opts GetOptions) DoReq(ctx context.Context, url string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, body)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating http request for cedar")
 	}
@@ -42,7 +43,6 @@ func (opts GetOptions) DoReq(ctx context.Context, url string) (*http.Response, e
 		req.Header.Set("Evergreen-Api-Key", opts.UserKey)
 		req.Header.Set("Evergreen-Api-User", opts.UserName)
 	}
-	req = req.WithContext(ctx)
 
 	c := utility.GetHTTPClient()
 	defer utility.PutHTTPClient(c)
