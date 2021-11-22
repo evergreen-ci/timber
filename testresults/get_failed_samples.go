@@ -14,25 +14,25 @@ import (
 	"github.com/pkg/errors"
 )
 
-// GetSampleOptions specify the required and optional information to create the test
-// results HTTP GET request to Cedar.
-type GetSampleOptions struct {
+// GetFailedSampleOptions specify the required and optional information to create the
+// failed test sample HTTP GET request to Cedar.
+type GetFailedSampleOptions struct {
 	Cedar timber.GetOptions
 
 	// Request information. See Cedar's REST documentation for more
 	// information:
 	// `https://github.com/evergreen-ci/cedar/wiki/Rest-V1-Usage`.
-	SampleOptions TestSampleOptions
+	SampleOptions FailedTestSampleOptions
 }
 
-// TestSampleOptions specifies the tasks to get the sample for
+// FailedTestSampleOptions specifies the tasks to get the sample for
 // and regexes to filter the test names by.
-type TestSampleOptions struct {
+type FailedTestSampleOptions struct {
 	Tasks        []TaskInfo `json:"tasks"`
 	RegexFilters []string   `json:"regex_filters,omitempty"`
 }
 
-func (opts TestSampleOptions) validate() error {
+func (opts FailedTestSampleOptions) validate() error {
 	catcher := grip.NewBasicCatcher()
 
 	if len(opts.Tasks) == 0 {
@@ -70,7 +70,7 @@ func (info TaskInfo) validate() error {
 }
 
 // Validate ensures GetSampleOptions is configured correctly.
-func (opts GetSampleOptions) Validate() error {
+func (opts GetFailedSampleOptions) Validate() error {
 	catcher := grip.NewBasicCatcher()
 
 	catcher.Add(opts.Cedar.Validate())
@@ -79,7 +79,7 @@ func (opts GetSampleOptions) Validate() error {
 	return catcher.Resolve()
 }
 
-func (opts GetSampleOptions) parse() (string, []byte, error) {
+func (opts GetFailedSampleOptions) parse() (string, []byte, error) {
 	urlString := fmt.Sprintf("%s/rest/v1/test_results/filtered_samples", opts.Cedar.BaseURL)
 	req, err := json.Marshal(opts.SampleOptions)
 	if err != nil {
@@ -89,8 +89,8 @@ func (opts GetSampleOptions) parse() (string, []byte, error) {
 	return urlString, req, nil
 }
 
-// GetSamples returns the filtered samples requested via HTTP to a Cedar service.
-func GetSamples(ctx context.Context, opts GetSampleOptions) ([]byte, error) {
+// GetFailedSamples returns the failed samples requested via HTTP to a Cedar service.
+func GetFailedSamples(ctx context.Context, opts GetFailedSampleOptions) ([]byte, error) {
 	resp, err := makeSamplesRequest(ctx, opts)
 	if err != nil {
 		return nil, err
@@ -104,7 +104,7 @@ func GetSamples(ctx context.Context, opts GetSampleOptions) ([]byte, error) {
 	return data, catcher.Resolve()
 }
 
-func makeSamplesRequest(ctx context.Context, opts GetSampleOptions) (*http.Response, error) {
+func makeSamplesRequest(ctx context.Context, opts GetFailedSampleOptions) (*http.Response, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, errors.WithStack(err)
 	}

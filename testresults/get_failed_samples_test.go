@@ -9,15 +9,15 @@ import (
 func TestSampleOptionsValidate(t *testing.T) {
 	for testName, testCase := range map[string]struct {
 		name   string
-		opts   TestSampleOptions
+		opts   FailedTestSampleOptions
 		hasErr bool
 	}{
 		"NoTasks": {
-			opts:   TestSampleOptions{},
+			opts:   FailedTestSampleOptions{},
 			hasErr: true,
 		},
 		"TaskWithoutID": {
-			opts: TestSampleOptions{
+			opts: FailedTestSampleOptions{
 				Tasks: []TaskInfo{
 					{TaskID: ""},
 				},
@@ -25,7 +25,7 @@ func TestSampleOptionsValidate(t *testing.T) {
 			hasErr: true,
 		},
 		"InvalidRegex": {
-			opts: TestSampleOptions{
+			opts: FailedTestSampleOptions{
 				Tasks: []TaskInfo{
 					{TaskID: "t1"},
 				},
@@ -34,7 +34,7 @@ func TestSampleOptionsValidate(t *testing.T) {
 			hasErr: true,
 		},
 		"ValidWithRegex": {
-			opts: TestSampleOptions{
+			opts: FailedTestSampleOptions{
 				Tasks: []TaskInfo{
 					{TaskID: "t1"},
 				},
@@ -43,7 +43,7 @@ func TestSampleOptionsValidate(t *testing.T) {
 			hasErr: false,
 		},
 		"ValidWithoutRegex": {
-			opts: TestSampleOptions{
+			opts: FailedTestSampleOptions{
 				Tasks: []TaskInfo{
 					{TaskID: "t1"},
 				},
@@ -64,12 +64,12 @@ func TestSampleOptionsValidate(t *testing.T) {
 
 func TestGetSampleOptionsParse(t *testing.T) {
 	for testName, testCase := range map[string]struct {
-		opts            TestSampleOptions
+		opts            FailedTestSampleOptions
 		expectedRequest string
 		hasErr          bool
 	}{
 		"NoRegexes": {
-			opts: TestSampleOptions{
+			opts: FailedTestSampleOptions{
 				Tasks: []TaskInfo{
 					{TaskID: "t1"},
 				},
@@ -77,7 +77,7 @@ func TestGetSampleOptionsParse(t *testing.T) {
 			expectedRequest: `{"tasks":[{"task_id":"t1","execution":0,"display_task":false}]}`,
 		},
 		"WithRegexes": {
-			opts: TestSampleOptions{
+			opts: FailedTestSampleOptions{
 				Tasks: []TaskInfo{
 					{TaskID: "t1"},
 				},
@@ -87,7 +87,7 @@ func TestGetSampleOptionsParse(t *testing.T) {
 		},
 	} {
 		t.Run(testName, func(t *testing.T) {
-			opts := GetSampleOptions{SampleOptions: testCase.opts}
+			opts := GetFailedSampleOptions{SampleOptions: testCase.opts}
 			_, req, err := opts.parse()
 			if testCase.hasErr {
 				assert.Error(t, err)
