@@ -105,11 +105,12 @@ func (opts GetOptions) parse() string {
 	return urlString
 }
 
-// Get returns the test results requested via HTTP to a Cedar service.
-func Get(ctx context.Context, opts GetOptions) ([]byte, error) {
+// Get returns the test results requested via HTTP to a Cedar service along
+// with the status code of the request.
+func Get(ctx context.Context, opts GetOptions) ([]byte, int, error) {
 	resp, err := get(ctx, opts)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	catcher := grip.NewBasicCatcher()
@@ -117,18 +118,19 @@ func Get(ctx context.Context, opts GetOptions) ([]byte, error) {
 	catcher.Wrap(err, "reading response body")
 	catcher.Wrap(resp.Body.Close(), "closing response body")
 
-	return data, catcher.Resolve()
+	return data, resp.StatusCode, catcher.Resolve()
 }
 
 // GetWithPaginatedReadCloser returns a paginated read closer for the test
-// results requested via HTTP to a Cedar service.
-func GetWithPaginatedReadCloser(ctx context.Context, opts GetOptions) (io.ReadCloser, error) {
+// results requested via HTTP to a Cedar service along with the status code of
+// the initial request.
+func GetWithPaginatedReadCloser(ctx context.Context, opts GetOptions) (io.ReadCloser, int, error) {
 	resp, err := get(ctx, opts)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return timber.NewPaginatedReadCloser(ctx, resp, opts.Cedar), nil
+	return timber.NewPaginatedReadCloser(ctx, resp, opts.Cedar), resp.StatusCode, nil
 }
 
 func get(ctx context.Context, opts GetOptions) (*http.Response, error) {
@@ -139,10 +141,6 @@ func get(ctx context.Context, opts GetOptions) (*http.Response, error) {
 	resp, err := opts.Cedar.DoReq(ctx, opts.parse(), nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "requesting test results from cedar")
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.Errorf("failed to fetch test results with resp '%s'", resp.Status)
 	}
 
 	return resp, nil
