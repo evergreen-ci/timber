@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/evergreen-ci/juniper/gopb"
@@ -485,4 +488,90 @@ func (ms *MockBuildloggerServer) CloseLog(_ context.Context, in *gopb.LogEndInfo
 
 	ms.Close = in
 	return &gopb.BuildloggerResponse{LogId: in.LogId}, nil
+}
+
+// MockCedarHTTPServer sets up a mock Cedar server for sending test results
+// using HTTP
+type MockCedarHTTPServer struct {
+	TestResults *MockTestResultsHTTPServer
+}
+
+// MockTestResultsHTTPServer sets up a mock Cedar server for sending test results
+// using HTTP.
+type MockTestResultsHTTPServer struct {
+	CreateErr     bool
+	AddErr        bool
+	StreamErr     bool
+	CloseErr      bool
+	Create        *gopb.TestResultsInfo
+	Results       map[string][]*gopb.TestResults
+	StreamResults map[string][]*gopb.TestResults
+	Close         *gopb.TestResultsEndInfo
+}
+
+// NewMockTestResultsServer returns a new MockTestResultsServer listening on a
+// port near the provided port.
+func NewMockTestResultsHTTPServer(ctx context.Context, basePort int) (*MockTestResultsHTTPServer, error) {
+	srv := &MockTestResultsHTTPServer{}
+	port := GetPortNumber(basePort)
+
+	lis, err := net.Listen("tcp", srv.Address())
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	s := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Write([]byte(strings.ToUpper(input))) //TODO: make this do stuff
+		}),
+	)
+	gopb.RegisterCedarTestResultsServer(s, srv)
+
+	go func() {
+		_ = s.Serve(lis)
+	}()
+	go func() {
+		<-ctx.Done()
+		s.Stop()
+	}()
+	return srv, nil
+}
+
+// CreateTestResultsRecord returns an error if CreateErr is true, otherwise it
+// sets Create to the input.
+//TODO need to convert to HTTP version
+func (m *MockTestResultsHTTPServer) CreateTestResultsRecord(_ context.Context, in *gopb.TestResultsInfo) (*gopb.TestResultsResponse, error) {
+	if m.CreateErr {
+		return nil, errors.New("create error")
+	}
+	m.Create = in
+	return &gopb.TestResultsResponse{TestResultsRecordId: utility.RandomString()}, nil
+}
+
+// AddTestResults returns an error if AddErr is true, otherwise it adds the
+// input to Results.
+func (m *MockTestResultsHTTPServer) AddTestResults(_ context.Context, in *gopb.TestResults) (*gopb.TestResultsResponse, error) {
+	if m.AddErr {
+		return nil, errors.New("add error")
+	}
+	if m.Results == nil {
+		m.Results = make(map[string][]*gopb.TestResults)
+	}
+	m.Results[in.TestResultsRecordId] = append(m.Results[in.TestResultsRecordId], in)
+	return &gopb.TestResultsResponse{TestResultsRecordId: in.TestResultsRecordId}, nil
+}
+
+// StreamTestResults returns a not implemented error.
+func (ms *MockTestResultsHTTPServer) StreamTestResults(gopb.CedarTestResults_StreamTestResultsServer) error {
+	return errors.New("not implemented")
+}
+
+// CloseTestResults returns an error if CloseErr is true, otherwise it sets
+// Close to the input.
+func (m *MockTestResultsHTTPServer) CloseTestResultsRecord(_ context.Context, in *gopb.TestResultsEndInfo) (*gopb.TestResultsResponse, error) {
+	if m.CloseErr {
+		return nil, errors.New("close error")
+	}
+	m.Close = in
+	return &gopb.TestResultsResponse{TestResultsRecordId: in.TestResultsRecordId}, nil
 }
