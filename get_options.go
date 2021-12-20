@@ -2,7 +2,6 @@ package timber
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -48,7 +47,6 @@ func (opts GetOptions) DoReq(ctx context.Context, url string, body io.Reader) (*
 	}
 
 	c := opts.HTTPClient
-	fmt.Println(c)
 	if c == nil {
 		c = utility.GetHTTPClient()
 		defer utility.PutHTTPClient(c)
