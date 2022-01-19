@@ -70,8 +70,13 @@ func (mc *mockClient) GetData() *gopb.SystemMetricsData {
 	if mc.data == nil {
 		return nil
 	}
-	ref := *mc.data
-	return &ref
+
+	return &gopb.SystemMetricsData{
+		Id:     mc.data.Id,
+		Type:   mc.data.Type,
+		Format: mc.data.Format,
+		Data:   mc.data.Data,
+	}
 }
 
 const basePort = 3000

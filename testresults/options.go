@@ -4,9 +4,8 @@ import (
 	"time"
 
 	"github.com/evergreen-ci/juniper/gopb"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/mongodb/grip"
-	"github.com/pkg/errors"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // CreateOptions represent options to create a new test results record.
@@ -55,19 +54,15 @@ func (r Results) validate() error {
 }
 
 // export converts Results into the equivalent protobuf TestResults.
-func (r Results) export() (*gopb.TestResults, error) {
+func (r Results) export() *gopb.TestResults {
 	var results []*gopb.TestResult
 	for _, res := range r.Results {
-		exported, err := res.export()
-		if err != nil {
-			return nil, errors.Wrap(err, "converting test result")
-		}
-		results = append(results, exported)
+		results = append(results, res.export())
 	}
 	return &gopb.TestResults{
 		TestResultsRecordId: r.ID,
 		Results:             results,
-	}, nil
+	}
 }
 
 // Result represents a single test result.
@@ -87,19 +82,7 @@ type Result struct {
 }
 
 // export converts a Result into the equivalent protobuf TestResult.
-func (r Result) export() (*gopb.TestResult, error) {
-	created, err := ptypes.TimestampProto(r.TaskCreated)
-	if err != nil {
-		return nil, errors.Wrap(err, "converting create timestamp")
-	}
-	started, err := ptypes.TimestampProto(r.TestStarted)
-	if err != nil {
-		return nil, errors.Wrap(err, "converting start timestamp")
-	}
-	ended, err := ptypes.TimestampProto(r.TestEnded)
-	if err != nil {
-		return nil, errors.Wrap(err, "converting end timestamp")
-	}
+func (r Result) export() *gopb.TestResult {
 	return &gopb.TestResult{
 		TestName:        r.TestName,
 		DisplayTestName: r.DisplayTestName,
@@ -110,8 +93,8 @@ func (r Result) export() (*gopb.TestResult, error) {
 		LogUrl:          r.LogURL,
 		RawLogUrl:       r.RawLogURL,
 		LineNum:         r.LineNum,
-		TaskCreateTime:  created,
-		TestStartTime:   started,
-		TestEndTime:     ended,
-	}, nil
+		TaskCreateTime:  timestamppb.New(r.TaskCreated),
+		TestStartTime:   timestamppb.New(r.TestStarted),
+		TestEndTime:     timestamppb.New(r.TestEnded),
+	}
 }

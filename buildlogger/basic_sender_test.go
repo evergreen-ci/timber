@@ -11,7 +11,6 @@ import (
 	"github.com/evergreen-ci/juniper/gopb"
 	"github.com/evergreen-ci/timber/testutil"
 	"github.com/evergreen-ci/utility"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/mongodb/grip/level"
 	"github.com/mongodb/grip/message"
 	"github.com/mongodb/grip/send"
@@ -19,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type mockClient struct {
@@ -680,7 +680,7 @@ func TestClose(t *testing.T) {
 		b := createSender(subCtx, mc, ms)
 		b.opts.logID = "id"
 		b.opts.SetExitCode(2)
-		logLine := &gopb.LogLine{Timestamp: &timestamp.Timestamp{}, Data: []byte("some data")}
+		logLine := &gopb.LogLine{Timestamp: &timestamppb.Timestamp{}, Data: []byte("some data")}
 		b.buffer = append(b.buffer, logLine)
 
 		require.NoError(t, b.Close())
@@ -712,7 +712,7 @@ func TestClose(t *testing.T) {
 		mc := &mockClient{appendErr: true}
 		ms := &mockSender{Base: send.NewBase("test")}
 		b := createSender(subCtx, mc, ms)
-		logLine := &gopb.LogLine{Timestamp: &timestamp.Timestamp{}, Data: []byte("some data")}
+		logLine := &gopb.LogLine{Timestamp: &timestamppb.Timestamp{}, Data: []byte("some data")}
 		b.buffer = append(b.buffer, logLine)
 
 		assert.Error(t, b.Close())

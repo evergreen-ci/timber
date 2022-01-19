@@ -77,7 +77,20 @@ func TestClient(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotZero(t, id)
 
-			assert.Equal(t, *opts.export(), *srv.Create)
+			exportedOpts := opts.export()
+			require.NotNil(t, srv.Create)
+			assert.Equal(t, exportedOpts.Project, srv.Create.Project)
+			assert.Equal(t, exportedOpts.Version, srv.Create.Version)
+			assert.Equal(t, exportedOpts.Variant, srv.Create.Variant)
+			assert.Equal(t, exportedOpts.TaskName, srv.Create.TaskName)
+			assert.Equal(t, exportedOpts.DisplayTaskName, srv.Create.DisplayTaskName)
+			assert.Equal(t, exportedOpts.TaskId, srv.Create.TaskId)
+			assert.Equal(t, exportedOpts.DisplayTaskId, srv.Create.DisplayTaskId)
+			assert.Equal(t, exportedOpts.Execution, srv.Create.Execution)
+			assert.Equal(t, exportedOpts.RequestType, srv.Create.RequestType)
+			assert.Equal(t, exportedOpts.Mainline, srv.Create.Mainline)
+			assert.Equal(t, exportedOpts.HistoricalDataIgnore, srv.Create.HistoricalDataIgnore)
+			assert.Equal(t, exportedOpts.HistoricalDataDisabled, srv.Create.HistoricalDataDisabled)
 		},
 		"CreateRecordFailsWithServerError": func(ctx context.Context, t *testing.T, srv *testutil.MockTestResultsServer, client *Client) {
 			srv.CreateErr = true
@@ -94,9 +107,8 @@ func TestClient(t *testing.T) {
 			require.NoError(t, client.AddResults(ctx, rs))
 
 			require.Len(t, srv.Results[rs.ID], 1)
-			exported, err := rs.export()
-			require.NoError(t, err)
-			assert.Equal(t, *srv.Results[rs.ID][0].Results[0], *exported.Results[0])
+			exported := rs.export()
+			assert.Equal(t, srv.Results[rs.ID][0].Results[0], exported.Results[0])
 		},
 		"AddResultsFailsWithInvalidOptions": func(ctx context.Context, t *testing.T, srv *testutil.MockTestResultsServer, client *Client) {
 			id, err := client.CreateRecord(ctx, validCreateOptions())
@@ -120,7 +132,8 @@ func TestClient(t *testing.T) {
 			require.NotZero(t, id)
 
 			require.NoError(t, client.CloseRecord(ctx, id))
-			assert.Equal(t, gopb.TestResultsEndInfo{TestResultsRecordId: id}, *srv.Close)
+			require.NotNil(t, srv.Close)
+			assert.Equal(t, id, srv.Close.TestResultsRecordId)
 		},
 		"CloseRecordFailsWithoutID": func(ctx context.Context, t *testing.T, srv *testutil.MockTestResultsServer, client *Client) {
 			id, err := client.CreateRecord(ctx, validCreateOptions())

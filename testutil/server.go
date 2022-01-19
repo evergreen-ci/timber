@@ -107,6 +107,11 @@ type MockMetricsServer struct {
 	StreamData map[string][]*gopb.SystemMetricsData
 	Close      *gopb.SystemMetricsSeriesEnd
 	DialOpts   timber.DialCedarOptions
+
+	// UnimplementedCedarSystemMetricsServer must be embedded for forward
+	// compatibility. See gopb.system_metrics_grpc.pb.go for more
+	// information.
+	gopb.UnimplementedCedarSystemMetricsServer
 }
 
 // NewMockMetricsServer will return a new MockMetricsServer listening on a port
@@ -267,6 +272,11 @@ type MockTestResultsServer struct {
 	StreamResults map[string][]*gopb.TestResults
 	Close         *gopb.TestResultsEndInfo
 	DialOpts      timber.DialCedarOptions
+
+	// UnimplementedCedarTestResultsServer must be embedded for forward
+	// compatibility. See gopb.test_results_grpc.pb.go for more
+	// information.
+	gopb.UnimplementedCedarTestResultsServer
 }
 
 // Address returns the address the server is listening on.
@@ -375,6 +385,10 @@ type MockBuildloggerServer struct {
 	Data      map[string][]*gopb.LogLines
 	Close     *gopb.LogEndInfo
 	DialOpts  timber.DialCedarOptions
+
+	// UnimplementedBuildloggerServer must be embedded for forward
+	// compatibility. See gopb.buildlogger_grpc.pb.go for more information.
+	gopb.UnimplementedBuildloggerServer
 }
 
 // NewMockBuildloggerServer returns a new MockBuildloggerServer listening on a

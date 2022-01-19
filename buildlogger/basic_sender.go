@@ -12,13 +12,13 @@ import (
 	"github.com/evergreen-ci/aviation"
 	"github.com/evergreen-ci/aviation/services"
 	"github.com/evergreen-ci/juniper/gopb"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/mongodb/grip"
 	"github.com/mongodb/grip/level"
 	"github.com/mongodb/grip/message"
 	"github.com/mongodb/grip/send"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -304,7 +304,7 @@ func (b *buildlogger) Send(m message.Composer) {
 		}
 		logLine := &gopb.LogLine{
 			Priority:  int32(m.Priority()),
-			Timestamp: &timestamp.Timestamp{Seconds: ts.Unix(), Nanos: int32(ts.Nanosecond())},
+			Timestamp: timestamppb.New(ts),
 			Data:      []byte(data),
 		}
 
