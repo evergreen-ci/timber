@@ -74,12 +74,7 @@ func (c *Client) AddResults(ctx context.Context, r Results) error {
 		return errors.Wrap(err, "invalid test results")
 	}
 
-	exported, err := r.export()
-	if err != nil {
-		return errors.Wrap(err, "converting test results to protobuf type")
-	}
-
-	if _, err := c.client.AddTestResults(ctx, exported); err != nil {
+	if _, err := c.client.AddTestResults(ctx, r.export()); err != nil {
 		return errors.WithStack(err)
 	}
 

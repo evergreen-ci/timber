@@ -107,6 +107,8 @@ type MockMetricsServer struct {
 	StreamData map[string][]*gopb.SystemMetricsData
 	Close      *gopb.SystemMetricsSeriesEnd
 	DialOpts   timber.DialCedarOptions
+
+	*gopb.UnimplementedCedarSystemMetricsServer
 }
 
 // NewMockMetricsServer will return a new MockMetricsServer listening on a port
@@ -267,6 +269,8 @@ type MockTestResultsServer struct {
 	StreamResults map[string][]*gopb.TestResults
 	Close         *gopb.TestResultsEndInfo
 	DialOpts      timber.DialCedarOptions
+
+	*gopb.UnimplementedCedarTestResultsServer
 }
 
 // Address returns the address the server is listening on.
@@ -375,6 +379,8 @@ type MockBuildloggerServer struct {
 	Data      map[string][]*gopb.LogLines
 	Close     *gopb.LogEndInfo
 	DialOpts  timber.DialCedarOptions
+
+	*gopb.UnimplementedBuildloggerServer
 }
 
 // NewMockBuildloggerServer returns a new MockBuildloggerServer listening on a

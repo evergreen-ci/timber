@@ -78,8 +78,8 @@ github.com/evergreen-ci/aviation v0.0.0-20211026175554-41a4410c650f h1:8dEYeeAk7
 github.com/evergreen-ci/aviation v0.0.0-20211026175554-41a4410c650f/go.mod h1:aKaSPhULP3hvwaX/sF5k5bQLtnOhndnRdnwNTqR3/cA=
 github.com/evergreen-ci/gimlet v0.0.0-20211018155143-ebbbff34990a h1:RusbbouS+lmhIIZO0BzOMf1f+/5BaW14KuCYYgoBMfQ=
 github.com/evergreen-ci/gimlet v0.0.0-20211018155143-ebbbff34990a/go.mod h1:F2dAoc1x1+JwZH9ylB9tpeOnztafEx2IbZjEz8GQzOM=
-github.com/evergreen-ci/juniper v0.0.0-20210624185208-0fd21a88954c h1:FCDPj6Qu/hvMhSvGsulo/vQdsz8iblPjxlTxqa11F3g=
-github.com/evergreen-ci/juniper v0.0.0-20210624185208-0fd21a88954c/go.mod h1:LewZWRe1jV5XJhNksoB0rpvlwsg+D6M3yvzIFJZ8OJs=
+github.com/evergreen-ci/juniper v0.0.0-20220118233332-0813edc78908 h1:k7f+q2yaOdv+SNSV2iHhqdBIxA8Yk78CLGypk8d+efI=
+github.com/evergreen-ci/juniper v0.0.0-20220118233332-0813edc78908/go.mod h1:LewZWRe1jV5XJhNksoB0rpvlwsg+D6M3yvzIFJZ8OJs=
 github.com/evergreen-ci/utility v0.0.0-20211026201827-97b21fa2660a h1:rCM80/P6uEBpRnL+OLKf0ybMyEpnqQ5UQURxHlapbAc=
 github.com/evergreen-ci/utility v0.0.0-20211026201827-97b21fa2660a/go.mod h1:fuEDytmDhOv+UCUwRPG/qD7mjVkUgx37KEv+thUgHVk=
 github.com/fatih/structs v1.1.0 h1:Q7juDM0QtcnhCpeyLGQKyg4TOIghuNXrkL32pHAUMxo=
@@ -127,9 +127,8 @@ github.com/golang/protobuf v1.4.0/go.mod h1:jodUvKwWbYaEsadDk5Fwe5c77LiNKVO9IDvq
 github.com/golang/protobuf v1.4.1/go.mod h1:U8fpvMrcmy5pZrNK1lt4xCsGvpyWQ/VVv6QDs8UjoX8=
 github.com/golang/protobuf v1.4.2/go.mod h1:oDoupMAO8OvCJWAcko0GGGIgR6R6ocIYbsSw735rRwI=
 github.com/golang/protobuf v1.4.3/go.mod h1:oDoupMAO8OvCJWAcko0GGGIgR6R6ocIYbsSw735rRwI=
+github.com/golang/protobuf v1.5.0 h1:LUVKkCeviFUMKqHa4tXIIij/lbhnMbP7Fn5wKdKkRh4=
 github.com/golang/protobuf v1.5.0/go.mod h1:FsONVRAS9T7sI+LIUmWTfcYkHO4aIWwzhcaSAoJOfIk=
-github.com/golang/protobuf v1.5.2 h1:ROPKBNFfQgOUMifHyP+KYbvpjbdoFNs+aK7DXlji0Tw=
-github.com/golang/protobuf v1.5.2/go.mod h1:XVQd3VNwM+JqD3oG2Ue2ip4fOMUkwXdXDdiuN0vRsmY=
 github.com/golang/snappy v0.0.1/go.mod h1:/XxbfmMg8lxefKM7IXC3fBNl/7bRcc72aCRzEWrmP2Q=
 github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
 github.com/google/btree v1.0.0/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
