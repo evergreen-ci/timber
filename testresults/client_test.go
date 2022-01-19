@@ -108,7 +108,7 @@ func TestClient(t *testing.T) {
 
 			require.Len(t, srv.Results[rs.ID], 1)
 			exported := rs.export()
-			assert.Equal(t, *srv.Results[rs.ID][0].Results[0], *exported.Results[0])
+			assert.Equal(t, srv.Results[rs.ID][0].Results[0], exported.Results[0])
 		},
 		"AddResultsFailsWithInvalidOptions": func(ctx context.Context, t *testing.T, srv *testutil.MockTestResultsServer, client *Client) {
 			id, err := client.CreateRecord(ctx, validCreateOptions())
