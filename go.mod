@@ -18,5 +18,5 @@ require (
 require (
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
-	google.golang.org/protobuf v1.26.0
+	google.golang.org/protobuf v1.27.1
 )
