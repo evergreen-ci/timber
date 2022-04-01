@@ -103,7 +103,7 @@ func (s *systemMetricsWriteCloser) Close() error {
 func (s *systemMetricsWriteCloser) flush() error {
 	if len(s.buffer) > 0 {
 		if err := s.client.AddSystemMetrics(s.ctx, s.opts, s.buffer); err != nil {
-			return errors.Wrapf(err, "problem sending data for id %s", s.opts.Id)
+			return errors.Wrapf(err, "sending data for ID '%s'", s.opts.Id)
 		}
 		s.buffer = []byte{}
 	}
@@ -141,7 +141,7 @@ func (s *systemMetricsWriteCloser) timedFlush() {
 				defer s.mu.Unlock()
 				if len(s.buffer) > 0 && time.Since(s.lastFlush) >= s.flushInterval {
 					if err := s.flush(); err != nil {
-						s.catcher.Add(errors.Wrapf(err, "problem with timed flush for id %s", s.opts.Id))
+						s.catcher.Add(errors.Wrapf(err, "interval flushing for ID '%s'", s.opts.Id))
 						s.close()
 					}
 				}
