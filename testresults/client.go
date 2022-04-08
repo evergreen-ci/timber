@@ -84,7 +84,7 @@ func (c *Client) AddResults(ctx context.Context, r Results) error {
 // CloseRecord marks a record as completed.
 func (c *Client) CloseRecord(ctx context.Context, id string) error {
 	if id == "" {
-		return errors.New("id cannot be empty")
+		return errors.New("ID cannot be empty")
 	}
 
 	if _, err := c.client.CloseTestResultsRecord(ctx, &gopb.TestResultsEndInfo{TestResultsRecordId: id}); err != nil {

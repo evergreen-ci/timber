@@ -45,7 +45,7 @@ func NewSystemMetricsClient(ctx context.Context, opts timber.ConnectionOptions) 
 		conn, err = timber.DialCedar(ctx, &opts.Client, opts.DialOpts)
 	}
 	if err != nil {
-		return nil, errors.Wrap(err, "problem dialing rpc server")
+		return nil, errors.Wrap(err, "dialing RPC server")
 	}
 
 	s := &SystemMetricsClient{
@@ -80,7 +80,7 @@ func (s *SystemMetricsClient) CreateSystemMetricsRecord(ctx context.Context, opt
 
 	resp, err := s.client.CreateSystemMetricsRecord(ctx, createSystemMetrics(opts))
 	if err != nil {
-		return "", errors.Wrap(err, "problem creating system metrics object")
+		return "", errors.Wrap(err, "creating system metrics object")
 	}
 
 	return resp.Id, nil
@@ -113,7 +113,7 @@ func (s *SystemMetricsClient) NewSystemMetricsWriteCloser(ctx context.Context, d
 		return nil, errors.Wrapf(err, "invalid system metrics data options")
 	}
 	if err := writerOpts.validate(); err != nil {
-		return nil, errors.Wrapf(err, "invalid write closer options for id %s", dataOpts.Id)
+		return nil, errors.Wrapf(err, "invalid write closer options for ID '%s'", dataOpts.Id)
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -139,7 +139,7 @@ func (s *SystemMetricsClient) NewSystemMetricsWriteCloser(ctx context.Context, d
 // object in cedar with the corresponding id, as well as the success boolean.
 func (s *SystemMetricsClient) CloseSystemMetrics(ctx context.Context, id string, success bool) error {
 	if id == "" {
-		return errors.New("must specify id of system metrics object")
+		return errors.New("must specify ID of system metrics object")
 	}
 
 	endInfo := &gopb.SystemMetricsSeriesEnd{

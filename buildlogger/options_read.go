@@ -37,17 +37,17 @@ func LoadLoggerOptions(fn string) (*LoggerOptions, error) {
 
 	unmarshal := getUnmarshaler(fn)
 	if unmarshal == nil {
-		return nil, errors.Errorf("cannot find unmarshler for input %s", fn)
+		return nil, errors.Errorf("cannot find unmarshaller for input '%s'", fn)
 	}
 
 	data, err := ioutil.ReadFile(fn)
 	if err != nil {
-		return nil, errors.Wrapf(err, "problem reading data from %s", fn)
+		return nil, errors.Wrapf(err, "reading data from file '%s'", fn)
 	}
 
 	out := LoggerOptions{}
 	if err = unmarshal(data, &out); err != nil {
-		return nil, errors.Wrap(err, "problem unmarshaling report data")
+		return nil, errors.Wrap(err, "unmarshalling report data")
 	}
 
 	return &out, nil

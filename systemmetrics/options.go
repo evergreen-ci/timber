@@ -33,7 +33,7 @@ func (s *MetricDataOptions) validate() error {
 		return errors.New("must specify the the type of metric in data")
 	}
 	if err := s.Format.validate(); err != nil {
-		return errors.Wrapf(err, "invalid format for id %s", s.Id)
+		return errors.Wrapf(err, "invalid format for ID '%s'", s.Id)
 	}
 	return nil
 }
