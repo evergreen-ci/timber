@@ -15,9 +15,4 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require (
-	github.com/gin-gonic/gin v1.5.0 // indirect
-	github.com/go-stack/stack v1.8.1 // indirect
-	github.com/tidwall/pretty v1.2.0 // indirect
-	google.golang.org/protobuf v1.27.1
-)
+require google.golang.org/protobuf v1.27.1
