@@ -52,7 +52,7 @@ func (opts GetOptions) Validate() error {
 	catcher := grip.NewBasicCatcher()
 
 	catcher.Add(opts.Cedar.Validate())
-	catcher.NewWhen(opts.TaskID == "", "must provide a task id")
+	catcher.NewWhen(opts.TaskID == "", "must provide a task ID")
 	catcher.NewWhen(opts.FailedSample && opts.Stats, "cannot request the failed sample and stats, must be one or the other")
 
 	return catcher.Resolve()

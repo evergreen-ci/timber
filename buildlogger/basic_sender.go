@@ -192,11 +192,11 @@ func NewLogger(name string, l send.LevelInfo, opts *LoggerOptions) (send.Sender,
 func NewLoggerWithContext(ctx context.Context, name string, l send.LevelInfo, opts *LoggerOptions) (send.Sender, error) {
 	b, err := MakeLoggerWithContext(ctx, name, opts)
 	if err != nil {
-		return nil, errors.Wrap(err, "problem making new logger")
+		return nil, errors.Wrap(err, "making new logger")
 	}
 
 	if err := b.SetLevel(l); err != nil {
-		return nil, errors.Wrap(err, "problem setting grip level")
+		return nil, errors.Wrap(err, "setting grip level")
 	}
 
 	return b, nil
@@ -235,7 +235,7 @@ func MakeLoggerWithContext(ctx context.Context, name string, opts *LoggerOptions
 			opts.ClientConn, err = services.DialCedar(ctx, opts.HTTPClient, dialOpts)
 		}
 		if err != nil {
-			return nil, errors.Wrap(err, "problem dialing rpc server")
+			return nil, errors.Wrap(err, "dialing RPC server")
 		}
 	}
 
@@ -249,7 +249,7 @@ func MakeLoggerWithContext(ctx context.Context, name string, opts *LoggerOptions
 	}
 
 	if err := b.SetErrorHandler(send.ErrorHandlerFromSender(b.opts.Local)); err != nil {
-		return nil, errors.Wrap(err, "problem setting default error handler")
+		return nil, errors.Wrap(err, "setting default error handler")
 	}
 
 	if err := b.createNewLog(); err != nil {
@@ -352,7 +352,7 @@ func (b *buildlogger) Close() error {
 	if len(b.buffer) > 0 {
 		if err := b.flush(b.ctx); err != nil {
 			b.opts.Local.Send(message.NewErrorMessage(level.Error, err))
-			catcher.Add(errors.Wrap(err, "problem flushing buffer"))
+			catcher.Add(errors.Wrap(err, "flushing buffer"))
 		}
 	}
 
@@ -363,7 +363,7 @@ func (b *buildlogger) Close() error {
 		}
 		_, err := b.client.CloseLog(b.ctx, endInfo)
 		b.opts.Local.Send(message.NewErrorMessage(level.Error, err))
-		catcher.Add(errors.Wrap(err, "problem closing log"))
+		catcher.Add(errors.Wrap(err, "closing log"))
 	}
 
 	if b.conn != nil {
@@ -397,7 +397,7 @@ func (b *buildlogger) createNewLog() error {
 	resp, err := b.client.CreateLog(b.ctx, data)
 	if err != nil {
 		b.opts.Local.Send(message.NewErrorMessage(level.Error, err))
-		return errors.Wrap(err, "problem creating log")
+		return errors.Wrap(err, "creating log")
 	}
 	b.opts.logID = resp.LogId
 
