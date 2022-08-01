@@ -83,7 +83,7 @@ func (opts GetFailedSampleOptions) parse() (string, []byte, error) {
 	urlString := fmt.Sprintf("%s/rest/v1/test_results/filtered_samples", opts.Cedar.BaseURL)
 	req, err := json.Marshal(opts.SampleOptions)
 	if err != nil {
-		return "", nil, errors.Wrap(err, "marshaling sample options")
+		return "", nil, errors.Wrap(err, "marshalling sample options")
 	}
 
 	return urlString, req, nil

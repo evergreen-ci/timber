@@ -218,7 +218,7 @@ func (ms *MockMetricsServer) StreamSystemMetrics(stream gopb.CedarSystemMetrics_
 
 	for {
 		if err := ctx.Err(); err != nil {
-			return errors.New("error from context in mock stream")
+			return errors.Wrap(err, "mock stream context")
 		}
 
 		chunk, err := stream.Recv()
@@ -226,19 +226,19 @@ func (ms *MockMetricsServer) StreamSystemMetrics(stream gopb.CedarSystemMetrics_
 			return stream.SendAndClose(&gopb.SystemMetricsResponse{Id: id})
 		}
 		if err != nil {
-			return fmt.Errorf("error in stream for id %s", id)
+			return errors.Wrapf(err, "streaming for ID '%s'", id)
 		}
 
 		if id == "" {
 			id = chunk.Id
 		} else if chunk.Id != id {
-			return fmt.Errorf("chunk id %s doesn't match id %s", chunk.Id, id)
+			return errors.Errorf("chunk ID '%s' doesn't match ID '%s'", chunk.Id, id)
 		}
 
 		ms.Mu.Lock()
 		if ms.StreamErr {
 			ms.Mu.Unlock()
-			return errors.New("error in stream")
+			return errors.New("stream error")
 		}
 		ms.StreamData[chunk.Type] = append(ms.StreamData[chunk.Type], chunk)
 		ms.Mu.Unlock()
