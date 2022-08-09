@@ -22,6 +22,7 @@ type MockCedarServer struct {
 	Metrics     *MockMetricsServer
 	TestResults *MockTestResultsServer
 	Buildlogger *MockBuildloggerServer
+	Health      *MockHealthServer
 	DialOpts    timber.DialCedarOptions
 }
 
@@ -32,6 +33,7 @@ func NewMockCedarServer(ctx context.Context, basePort int) (*MockCedarServer, er
 		Metrics:     &MockMetricsServer{},
 		TestResults: &MockTestResultsServer{},
 		Buildlogger: &MockBuildloggerServer{},
+		Health:      &MockHealthServer{},
 	}
 	port := GetPortNumber(basePort)
 
@@ -49,6 +51,7 @@ func NewMockCedarServer(ctx context.Context, basePort int) (*MockCedarServer, er
 	gopb.RegisterCedarSystemMetricsServer(s, srv.Metrics)
 	gopb.RegisterCedarTestResultsServer(s, srv.TestResults)
 	gopb.RegisterBuildloggerServer(s, srv.Buildlogger)
+	gopb.RegisterHealthServer(s, srv.Health)
 
 	go func() {
 		_ = s.Serve(lis)
@@ -61,12 +64,13 @@ func NewMockCedarServer(ctx context.Context, basePort int) (*MockCedarServer, er
 }
 
 // NewMockCedarServerWithDialOpts will return a new MockCedarServer listening
-// on the port and url from the specified dial options.
+// on the port and URL from the specified dial options.
 func NewMockCedarServerWithDialOpts(ctx context.Context, opts timber.DialCedarOptions) (*MockCedarServer, error) {
 	srv := &MockCedarServer{
 		Metrics:     &MockMetricsServer{},
 		TestResults: &MockTestResultsServer{},
 		Buildlogger: &MockBuildloggerServer{},
+		Health:      &MockHealthServer{},
 	}
 	srv.DialOpts = opts
 	lis, err := net.Listen("tcp", srv.Address())
@@ -94,8 +98,8 @@ func (ms *MockCedarServer) Address() string {
 	return fmt.Sprintf("%s:%s", ms.DialOpts.BaseAddress, ms.DialOpts.RPCPort)
 }
 
-// MockMetricsServer sets up a mock cedar server for testing sending system
-// metrics data to cedar using gRPC.
+// MockMetricsServer sets up a mock Cedar server for testing sending system
+// metrics data using gRPC.
 type MockMetricsServer struct {
 	Mu         sync.Mutex
 	CreateErr  bool
@@ -144,7 +148,7 @@ func NewMockMetricsServer(ctx context.Context, basePort int) (*MockMetricsServer
 }
 
 // NewMockMetricsServerWithDialOpts will return a new MockMetricsServer
-// listening on the port and url from the specified dial options.
+// listening on the port and URL from the specified dial options.
 func NewMockMetricsServerWithDialOpts(ctx context.Context, opts timber.DialCedarOptions) (*MockMetricsServer, error) {
 	srv := &MockMetricsServer{}
 	srv.DialOpts = opts
@@ -314,7 +318,7 @@ func NewMockTestResultsServer(ctx context.Context, basePort int) (*MockTestResul
 }
 
 // NewMockTestResultsServerWithDialOpts returns a new MockTestResultsServer
-// listening on the port and url from the specified dial options.
+// listening on the port and URL from the specified dial options.
 func NewMockTestResultsServerWithDialOpts(ctx context.Context, opts timber.DialCedarOptions) (*MockTestResultsServer, error) {
 	srv := &MockTestResultsServer{}
 	srv.DialOpts = opts
@@ -374,8 +378,8 @@ func (m *MockTestResultsServer) CloseTestResultsRecord(_ context.Context, in *go
 	return &gopb.TestResultsResponse{TestResultsRecordId: in.TestResultsRecordId}, nil
 }
 
-// MockBuildloggerServer sets up a mock cedar server for testing buildlogger
-// logs to cedar using gRPC.
+// MockBuildloggerServer sets up a mock Cedar server for testing buildlogger
+// logs using gRPC.
 type MockBuildloggerServer struct {
 	Mu        sync.Mutex
 	CreateErr bool
@@ -423,7 +427,7 @@ func NewMockBuildloggerServer(ctx context.Context, basePort int) (*MockBuildlogg
 }
 
 // NewMockBuildloggerServerWithDialOpts returns a new MockBuildloggerServer
-// listening on the port and url from the specified dial options.
+// listening on the port and URL from the specified dial options.
 func NewMockBuildloggerServerWithDialOpts(ctx context.Context, opts timber.DialCedarOptions) (*MockBuildloggerServer, error) {
 	srv := &MockBuildloggerServer{}
 	srv.DialOpts = opts
@@ -499,4 +503,91 @@ func (ms *MockBuildloggerServer) CloseLog(_ context.Context, in *gopb.LogEndInfo
 
 	ms.Close = in
 	return &gopb.BuildloggerResponse{LogId: in.LogId}, nil
+}
+
+// MockHealthServer sets up a mock Cedar server for testing the health check
+// gRPC route.
+type MockHealthServer struct {
+	Mu       sync.Mutex
+	Status   *gopb.HealthCheckResponse_ServingStatus
+	Err      bool
+	DialOpts timber.DialCedarOptions
+
+	// UnimplementedHealthServer must be embedded for forward
+	// compatibility. See gopb.health_grpc.pb.go for more information.
+	gopb.UnimplementedHealthServer
+}
+
+// NewMockHealthServer returns a new MockHealthServer listening on a port near
+// near the provided port.
+func NewMockHealthServer(ctx context.Context, basePort int) (*MockHealthServer, error) {
+	srv := &MockHealthServer{}
+	port := GetPortNumber(basePort)
+	srv.DialOpts = timber.DialCedarOptions{
+		BaseAddress: "localhost",
+		RPCPort:     strconv.Itoa(port),
+	}
+
+	lis, err := net.Listen("tcp", srv.Address())
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	s := grpc.NewServer()
+	gopb.RegisterHealthServer(s, srv)
+
+	go func() {
+		_ = s.Serve(lis)
+	}()
+	go func() {
+		<-ctx.Done()
+		s.Stop()
+	}()
+	return srv, nil
+}
+
+// NewMockHealthServerWithDialOpts returns a new MockHealthServer listening on
+// the port and URL from the specified dial options.
+func NewMockHealthServerWithDialOpts(ctx context.Context, opts timber.DialCedarOptions) (*MockHealthServer, error) {
+	srv := &MockHealthServer{}
+	srv.DialOpts = opts
+	lis, err := net.Listen("tcp", srv.Address())
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	s := grpc.NewServer()
+	gopb.RegisterHealthServer(s, srv)
+
+	go func() {
+		_ = s.Serve(lis)
+	}()
+	go func() {
+		<-ctx.Done()
+		s.Stop()
+	}()
+	return srv, nil
+}
+
+// Address returns the address the server is listening on.
+func (ms *MockHealthServer) Address() string {
+	return fmt.Sprintf("%s:%s", ms.DialOpts.BaseAddress, ms.DialOpts.RPCPort)
+}
+
+// Check returns (in the following order of precedence) an error if Err is
+// true, Status if it is not empty, and "SERVING" otherwise.
+func (ms *MockHealthServer) Check(_ context.Context, in *gopb.HealthCheckRequest) (*gopb.HealthCheckResponse, error) {
+	ms.Mu.Lock()
+	defer ms.Mu.Unlock()
+
+	if ms.Err {
+		return nil, errors.New("health check error")
+	}
+
+	status := gopb.HealthCheckResponse_SERVING
+	if ms.Status != nil {
+		status = *ms.Status
+	}
+
+	return &gopb.HealthCheckResponse{Status: status}, nil
 }

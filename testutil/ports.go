@@ -8,16 +8,16 @@ func init() {
 		go func() {
 			id := 0
 			for {
-				id++
 				out <- id
+				id++
 			}
 		}()
 		return out
 	}()
 }
 
-// GetPortNumber returns a new port number that has not been used in the current
-// runtime.
+// GetPortNumber returns a new port number that has not been used in the
+// current runtime.
 func GetPortNumber(base int) int {
 	return base + <-intSource
 }
