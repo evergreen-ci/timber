@@ -33,6 +33,7 @@ func NewMockCedarServer(ctx context.Context, basePort int) (*MockCedarServer, er
 		Metrics:     &MockMetricsServer{},
 		TestResults: &MockTestResultsServer{},
 		Buildlogger: &MockBuildloggerServer{},
+		Health:      &MockHealthServer{},
 	}
 	port := GetPortNumber(basePort)
 
