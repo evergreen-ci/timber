@@ -89,8 +89,6 @@ func TestClient(t *testing.T) {
 			assert.Equal(t, exportedOpts.Execution, srv.Create.Execution)
 			assert.Equal(t, exportedOpts.RequestType, srv.Create.RequestType)
 			assert.Equal(t, exportedOpts.Mainline, srv.Create.Mainline)
-			assert.Equal(t, exportedOpts.HistoricalDataIgnore, srv.Create.HistoricalDataIgnore)
-			assert.Equal(t, exportedOpts.HistoricalDataDisabled, srv.Create.HistoricalDataDisabled)
 		},
 		"CreateRecordFailsWithServerError": func(ctx context.Context, t *testing.T, srv *testutil.MockTestResultsServer, client *Client) {
 			srv.CreateErr = true
@@ -190,16 +188,14 @@ func TestClient(t *testing.T) {
 
 func validCreateOptions() CreateOptions {
 	return CreateOptions{
-		Project:                "project",
-		Version:                "version",
-		Variant:                "variant",
-		TaskID:                 "task_id",
-		TaskName:               "task_name",
-		DisplayTaskName:        "display_task_name",
-		DisplayTaskID:          "display_task_id",
-		RequestType:            "request_type",
-		HistoricalDataIgnore:   []string{"ignoreMe"},
-		HistoricalDataDisabled: true,
+		Project:         "project",
+		Version:         "version",
+		Variant:         "variant",
+		TaskID:          "task_id",
+		TaskName:        "task_name",
+		DisplayTaskName: "display_task_name",
+		DisplayTaskID:   "display_task_id",
+		RequestType:     "request_type",
 	}
 }
 

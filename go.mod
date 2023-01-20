@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/evergreen-ci/aviation v0.0.0-20220405151811-ff4a78a4297c
-	github.com/evergreen-ci/juniper v0.0.0-20220118233332-0813edc78908
+	github.com/evergreen-ci/juniper v0.0.0-20230119161755-1aced8006202
 	github.com/evergreen-ci/utility v0.0.0-20220404192535-d16eb64796e6
 	github.com/mongodb/grip v0.0.0-20220401165023-6a1d9bb90c21
 	github.com/peterhellberg/link v1.2.0
