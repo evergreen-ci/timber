@@ -1,13 +1,12 @@
 package testresults
 
 import (
-	"fmt"
-	"net/url"
+	"encoding/json"
 	"testing"
 
 	"github.com/evergreen-ci/timber"
-	"github.com/evergreen-ci/utility"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetOptionsValidate(t *testing.T) {
@@ -19,12 +18,17 @@ func TestGetOptionsValidate(t *testing.T) {
 		{
 			name: "InvalidCedarOpts",
 			opts: GetOptions{
-				TaskID: "task",
+				Tasks: []TaskOptions{
+					{
+						TaskID:    "task",
+						Execution: 0,
+					},
+				},
 			},
 			hasErr: true,
 		},
 		{
-			name: "MissingTaskID",
+			name: "EmptyTasks",
 			opts: GetOptions{
 				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
@@ -38,39 +42,93 @@ func TestGetOptionsValidate(t *testing.T) {
 				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
-				TaskID:       "task",
+				Tasks: []TaskOptions{
+					{
+						TaskID:    "task",
+						Execution: 0,
+					},
+				},
 				FailedSample: true,
 				Stats:        true,
 			},
 			hasErr: true,
 		},
 		{
-			name: "TaskID",
+			name: "FailedSampleAndFilterOpts",
 			opts: GetOptions{
 				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
-				TaskID: "task",
+				Tasks: []TaskOptions{
+					{
+						TaskID:    "task",
+						Execution: 0,
+					},
+				},
+				Filter:       &FilterOptions{},
+				FailedSample: true,
+			},
+			hasErr: true,
+		},
+		{
+			name: "StatsAndFilterOpts",
+			opts: GetOptions{
+				Cedar: timber.GetOptions{
+					BaseURL: "https://url.com",
+				},
+				Tasks: []TaskOptions{
+					{
+						TaskID:    "task",
+						Execution: 0,
+					},
+				},
+				Filter: &FilterOptions{},
+				Stats:  true,
+			},
+			hasErr: true,
+		},
+		{
+			name: "OnlyTasks",
+			opts: GetOptions{
+				Cedar: timber.GetOptions{
+					BaseURL: "https://url.com",
+				},
+				Tasks: []TaskOptions{
+					{
+						TaskID:    "task",
+						Execution: 0,
+					},
+				},
 			},
 		},
 		{
-			name: "TaskIDAndFailedSample",
+			name: "TasksAndFailedSample",
 			opts: GetOptions{
 				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
-				TaskID:       "task",
+				Tasks: []TaskOptions{
+					{
+						TaskID:    "task",
+						Execution: 0,
+					},
+				},
 				FailedSample: true,
 			},
 		},
 		{
-			name: "TaskIDAndStats",
+			name: "TasksAndStats",
 			opts: GetOptions{
 				Cedar: timber.GetOptions{
 					BaseURL: "https://url.com",
 				},
-				TaskID:       "task",
-				FailedSample: true,
+				Tasks: []TaskOptions{
+					{
+						TaskID:    "task",
+						Execution: 0,
+					},
+				},
+				Stats: true,
 			},
 		},
 	} {
@@ -94,61 +152,89 @@ func TestParse(t *testing.T) {
 		expectedURL string
 	}{
 		{
-			name: "TaskID",
+			name: "OnlyTasks",
 			opts: GetOptions{
-				Cedar:  cedarOpts,
-				TaskID: "task",
+				Cedar: cedarOpts,
+				Tasks: []TaskOptions{
+					{
+						TaskID:    "task",
+						Execution: 0,
+					},
+				},
 			},
-			expectedURL: baseURL + "/task_id/task",
+			expectedURL: baseURL + "/tasks",
 		},
 		{
-			name: "TaskIDWithParams",
+			name: "TasksAndFilter",
 			opts: GetOptions{
-				Cedar:        cedarOpts,
-				TaskID:       "task?",
-				Execution:    utility.ToIntPtr(1),
-				DisplayTask:  true,
-				TestName:     "test?",
-				Statuses:     []string{"fail&", "silentfail"},
-				GroupID:      "group/1?",
-				SortBy:       "sort/by",
-				SortOrderDSC: true,
-				BaseTaskID:   "base_task?",
-				Limit:        100,
-				Page:         5,
+				Cedar: cedarOpts,
+				Tasks: []TaskOptions{
+					{
+						TaskID:    "task",
+						Execution: 0,
+					},
+				},
+				Filter: &FilterOptions{
+					TestName:     "test",
+					Statuses:     []string{"fail", "silentfail"},
+					GroupID:      "group",
+					SortBy:       "sort",
+					SortOrderDSC: true,
+					Limit:        100,
+					Page:         5,
+					BaseTasks: []TaskOptions{
+						{
+							TaskID:    "base_task",
+							Execution: 1,
+						},
+					},
+				},
 			},
-			expectedURL: fmt.Sprintf(
-				"%s/task_id/%s?execution=1&display_task=true&test_name=%s&status=%s&status=silentfail&group_id=%s&sort_by=%s&sort_order_dsc=true&base_task_id=%s&limit=100&page=5",
-				baseURL,
-				url.PathEscape("task?"),
-				url.QueryEscape("test?"),
-				url.QueryEscape("fail&"),
-				url.QueryEscape("group/1?"),
-				url.QueryEscape("sort/by"),
-				url.QueryEscape("base_task?"),
-			),
+			expectedURL: baseURL + "/tasks",
 		},
 		{
 			name: "FailedSample",
 			opts: GetOptions{
-				Cedar:        cedarOpts,
-				TaskID:       "task",
+				Cedar: cedarOpts,
+				Tasks: []TaskOptions{
+					{
+						TaskID:    "task",
+						Execution: 0,
+					},
+				},
 				FailedSample: true,
 			},
-			expectedURL: baseURL + "/task_id/task/failed_sample",
+			expectedURL: baseURL + "/tasks/failed_sample",
 		},
 		{
 			name: "Stats",
 			opts: GetOptions{
-				Cedar:  cedarOpts,
-				TaskID: "task",
-				Stats:  true,
+				Cedar: cedarOpts,
+				Tasks: []TaskOptions{
+					{
+						TaskID:    "task",
+						Execution: 0,
+					},
+				},
+				Stats: true,
 			},
-			expectedURL: baseURL + "/task_id/task/stats",
+			expectedURL: baseURL + "/tasks/stats",
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expectedURL, test.opts.parse())
+			urlString, payload, err := test.opts.serialize()
+			require.NoError(t, err)
+
+			assert.Equal(t, test.expectedURL, urlString)
+			expectedPayload, err := json.Marshal(&struct {
+				Tasks  []TaskOptions  `json:"tasks"`
+				Filter *FilterOptions `json:"filter,omitempty"`
+			}{
+				Tasks:  test.opts.Tasks,
+				Filter: test.opts.Filter,
+			})
+			require.NoError(t, err)
+			assert.Equal(t, expectedPayload, payload)
 		})
 	}
 }
