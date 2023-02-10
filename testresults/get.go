@@ -1,12 +1,11 @@
 package testresults
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
-	"strings"
 
 	"github.com/evergreen-ci/timber"
 	"github.com/mongodb/grip"
@@ -30,21 +29,34 @@ type GetOptions struct {
 	// Request information. See Cedar's REST documentation for more
 	// information:
 	// `https://github.com/evergreen-ci/cedar/wiki/Rest-V1-Usage`.
-	TaskID       string
+	Tasks        []TaskOptions
+	Filter       *FilterOptions
 	FailedSample bool
 	Stats        bool
+}
 
-	// Query parameters.
-	Execution    *int
-	DisplayTask  bool
-	TestName     string
-	Statuses     []string
-	GroupID      string
-	SortBy       string
-	SortOrderDSC bool
-	BaseTaskID   string
-	Limit        int
-	Page         int
+// TaskOptions specify the information required to fetch test results by task.
+type TaskOptions struct {
+	TaskID    string `json:"task_id"`
+	Execution int    `json:"execution"`
+}
+
+// FilterOptions represent the parameters for filtering, sorting, and
+// paginating test results. These options are only supported on select routes.
+type FilterOptions struct {
+	TestName     string        `json:"test_name,omitempty"`
+	Statuses     []string      `json:"statuses,omitempty"`
+	GroupID      string        `json:"group_id,omitempty"`
+	SortBy       string        `json:"sort_by,omitempty"`
+	SortOrderDSC bool          `json:"sort_order_dsc,omitempty"`
+	Limit        int           `json:"limit,omitempty"`
+	Page         int           `json:"page,omitempty"`
+	BaseTasks    []TaskOptions `json:"base_tasks,omitempty"`
+}
+
+type requestPayload struct {
+	Tasks  []TaskOptions  `json:"tasks"`
+	Filter *FilterOptions `json:"filter,omitempty"`
 }
 
 // Validate ensures TestResultsGetOptions is configured correctly.
@@ -52,14 +64,15 @@ func (opts GetOptions) Validate() error {
 	catcher := grip.NewBasicCatcher()
 
 	catcher.Add(opts.Cedar.Validate())
-	catcher.NewWhen(opts.TaskID == "", "must provide a task ID")
+	catcher.NewWhen(len(opts.Tasks) == 0, "must specify at least one task")
 	catcher.NewWhen(opts.FailedSample && opts.Stats, "cannot request the failed sample and stats, must be one or the other")
+	catcher.NewWhen((opts.FailedSample || opts.Stats) && opts.Filter != nil, "cannot specify filter options on the failed_sample and stats routes")
 
 	return catcher.Resolve()
 }
 
-func (opts GetOptions) parse() string {
-	urlString := fmt.Sprintf("%s/rest/v1/test_results/task_id/%s", opts.Cedar.BaseURL, url.PathEscape(opts.TaskID))
+func (opts GetOptions) serialize() (string, []byte, error) {
+	urlString := fmt.Sprintf("%s/rest/v1/test_results/tasks", opts.Cedar.BaseURL)
 	if opts.FailedSample {
 		urlString += "/failed_sample"
 	}
@@ -67,50 +80,36 @@ func (opts GetOptions) parse() string {
 		urlString += "/stats"
 	}
 
-	var params []string
-	if opts.Execution != nil {
-		params = append(params, fmt.Sprintf("execution=%d", *opts.Execution))
+	payload := struct {
+		Tasks  []TaskOptions  `json:"tasks"`
+		Filter *FilterOptions `json:"filter,omitempty"`
+	}{
+		Tasks:  opts.Tasks,
+		Filter: opts.Filter,
 	}
-	if opts.DisplayTask {
-		params = append(params, "display_task=true")
-	}
-	if opts.TestName != "" {
-		params = append(params, fmt.Sprintf("test_name=%s", url.QueryEscape(opts.TestName)))
-	}
-	for _, status := range opts.Statuses {
-		params = append(params, fmt.Sprintf("status=%s", url.QueryEscape(status)))
-	}
-	if opts.GroupID != "" {
-		params = append(params, fmt.Sprintf("group_id=%s", url.QueryEscape(opts.GroupID)))
-	}
-	if opts.SortBy != "" {
-		params = append(params, fmt.Sprintf("sort_by=%s", url.QueryEscape(opts.SortBy)))
-	}
-	if opts.SortOrderDSC {
-		params = append(params, "sort_order_dsc=true")
-	}
-	if opts.BaseTaskID != "" {
-		params = append(params, fmt.Sprintf("base_task_id=%s", url.QueryEscape(opts.BaseTaskID)))
-	}
-	if opts.Limit > 0 {
-		params = append(params, fmt.Sprintf("limit=%d", opts.Limit))
-	}
-	if opts.Page > 0 {
-		params = append(params, fmt.Sprintf("page=%d", opts.Page))
-	}
-	if len(params) > 0 {
-		urlString += "?" + strings.Join(params, "&")
+	data, err := json.Marshal(&payload)
+	if err != nil {
+		return "", nil, errors.Wrap(err, "marshalling JSON request payload")
 	}
 
-	return urlString
+	return urlString, data, nil
 }
 
 // Get returns the test results requested via HTTP to a Cedar service along
 // with the status code of the request.
 func Get(ctx context.Context, opts GetOptions) ([]byte, int, error) {
-	resp, err := get(ctx, opts)
+	if err := opts.Validate(); err != nil {
+		return nil, 0, errors.WithStack(err)
+	}
+
+	url, payload, err := opts.serialize()
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, errors.Wrap(err, "serializing request options")
+	}
+
+	resp, err := opts.Cedar.DoReq(ctx, url, bytes.NewReader(payload))
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "requesting test results from cedar")
 	}
 
 	catcher := grip.NewBasicCatcher()
@@ -119,29 +118,4 @@ func Get(ctx context.Context, opts GetOptions) ([]byte, int, error) {
 	catcher.Wrap(resp.Body.Close(), "closing response body")
 
 	return data, resp.StatusCode, catcher.Resolve()
-}
-
-// GetWithPaginatedReadCloser returns a paginated read closer for the test
-// results requested via HTTP to a Cedar service along with the status code of
-// the initial request.
-func GetWithPaginatedReadCloser(ctx context.Context, opts GetOptions) (io.ReadCloser, int, error) {
-	resp, err := get(ctx, opts)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return timber.NewPaginatedReadCloser(ctx, resp, opts.Cedar), resp.StatusCode, nil
-}
-
-func get(ctx context.Context, opts GetOptions) (*http.Response, error) {
-	if err := opts.Validate(); err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	resp, err := opts.Cedar.DoReq(ctx, opts.parse(), nil)
-	if err != nil {
-		return nil, errors.Wrap(err, "requesting test results from cedar")
-	}
-
-	return resp, nil
 }
