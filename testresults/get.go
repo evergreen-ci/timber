@@ -41,17 +41,22 @@ type TaskOptions struct {
 	Execution int    `json:"execution"`
 }
 
+// SortBy describes the properties by which to sort a set of test results.
+type SortBy struct {
+	Key      string `json:"key"`
+	OrderDSC bool   `json:"order_dsc"`
+}
+
 // FilterOptions represent the parameters for filtering, sorting, and
 // paginating test results. These options are only supported on select routes.
 type FilterOptions struct {
-	TestName     string        `json:"test_name,omitempty"`
-	Statuses     []string      `json:"statuses,omitempty"`
-	GroupID      string        `json:"group_id,omitempty"`
-	SortBy       string        `json:"sort_by,omitempty"`
-	SortOrderDSC bool          `json:"sort_order_dsc,omitempty"`
-	Limit        int           `json:"limit,omitempty"`
-	Page         int           `json:"page,omitempty"`
-	BaseTasks    []TaskOptions `json:"base_tasks,omitempty"`
+	TestName  string        `json:"test_name,omitempty"`
+	Statuses  []string      `json:"statuses,omitempty"`
+	GroupID   string        `json:"group_id,omitempty"`
+	Sort      []SortBy      `json:"sort"`
+	Limit     int           `json:"limit,omitempty"`
+	Page      int           `json:"page,omitempty"`
+	BaseTasks []TaskOptions `json:"base_tasks,omitempty"`
 }
 
 type requestPayload struct {
