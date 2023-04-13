@@ -175,13 +175,20 @@ func TestParse(t *testing.T) {
 					},
 				},
 				Filter: &FilterOptions{
-					TestName:     "test",
-					Statuses:     []string{"fail", "silentfail"},
-					GroupID:      "group",
-					SortBy:       "sort",
-					SortOrderDSC: true,
-					Limit:        100,
-					Page:         5,
+					TestName: "test",
+					Statuses: []string{"fail", "silentfail"},
+					GroupID:  "group",
+					Sort: []SortBy{
+						{
+							Key: "key0",
+						},
+						{
+							Key:      "key1",
+							OrderDSC: true,
+						},
+					},
+					Limit: 100,
+					Page:  5,
 					BaseTasks: []TaskOptions{
 						{
 							TaskID:    "base_task",
