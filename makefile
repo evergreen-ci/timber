@@ -1,8 +1,8 @@
 # start project configuration
 name := timber
 buildDir := build
-packages := $(name) buildlogger perf systemmetrics testresults testutil
-testPackages := $(name) buildlogger perf systemmetrics testresults
+packages := $(name) buildlogger perf testresults testutil
+testPackages := $(name) buildlogger perf testresults
 compilePackages := $(subst $(name),,$(subst -,/,$(foreach target,$(packages),./$(target))))
 projectPath := github.com/evergreen-ci/timber
 # end project configuration
