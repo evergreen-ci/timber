@@ -3,7 +3,6 @@ package testutil
 import (
 	"context"
 	"fmt"
-	"io"
 	"net"
 	"strconv"
 	"sync"
@@ -19,7 +18,6 @@ import (
 // MockCedarServer sets up a mock Cedar server for sending metrics, test
 // results, and logs using gRPC.
 type MockCedarServer struct {
-	Metrics     *MockMetricsServer
 	TestResults *MockTestResultsServer
 	Buildlogger *MockBuildloggerServer
 	Health      *MockHealthServer
@@ -30,7 +28,6 @@ type MockCedarServer struct {
 // near the provided port.
 func NewMockCedarServer(ctx context.Context, basePort int) (*MockCedarServer, error) {
 	srv := &MockCedarServer{
-		Metrics:     &MockMetricsServer{},
 		TestResults: &MockTestResultsServer{},
 		Buildlogger: &MockBuildloggerServer{},
 		Health:      &MockHealthServer{},
@@ -48,7 +45,6 @@ func NewMockCedarServer(ctx context.Context, basePort int) (*MockCedarServer, er
 	}
 
 	s := grpc.NewServer()
-	gopb.RegisterCedarSystemMetricsServer(s, srv.Metrics)
 	gopb.RegisterCedarTestResultsServer(s, srv.TestResults)
 	gopb.RegisterBuildloggerServer(s, srv.Buildlogger)
 	gopb.RegisterHealthServer(s, srv.Health)
@@ -67,7 +63,6 @@ func NewMockCedarServer(ctx context.Context, basePort int) (*MockCedarServer, er
 // on the port and URL from the specified dial options.
 func NewMockCedarServerWithDialOpts(ctx context.Context, opts timber.DialCedarOptions) (*MockCedarServer, error) {
 	srv := &MockCedarServer{
-		Metrics:     &MockMetricsServer{},
 		TestResults: &MockTestResultsServer{},
 		Buildlogger: &MockBuildloggerServer{},
 		Health:      &MockHealthServer{},
@@ -79,7 +74,6 @@ func NewMockCedarServerWithDialOpts(ctx context.Context, opts timber.DialCedarOp
 	}
 
 	s := grpc.NewServer()
-	gopb.RegisterCedarSystemMetricsServer(s, srv.Metrics)
 	gopb.RegisterCedarTestResultsServer(s, srv.TestResults)
 	gopb.RegisterBuildloggerServer(s, srv.Buildlogger)
 
@@ -96,172 +90,6 @@ func NewMockCedarServerWithDialOpts(ctx context.Context, opts timber.DialCedarOp
 // Address returns the address the server is listening on.
 func (ms *MockCedarServer) Address() string {
 	return fmt.Sprintf("%s:%s", ms.DialOpts.BaseAddress, ms.DialOpts.RPCPort)
-}
-
-// MockMetricsServer sets up a mock Cedar server for testing sending system
-// metrics data using gRPC.
-type MockMetricsServer struct {
-	Mu         sync.Mutex
-	CreateErr  bool
-	AddErr     bool
-	StreamErr  bool
-	CloseErr   bool
-	Create     *gopb.SystemMetrics
-	Data       map[string][]*gopb.SystemMetricsData
-	StreamData map[string][]*gopb.SystemMetricsData
-	Close      *gopb.SystemMetricsSeriesEnd
-	DialOpts   timber.DialCedarOptions
-
-	// UnimplementedCedarSystemMetricsServer must be embedded for forward
-	// compatibility. See gopb.system_metrics_grpc.pb.go for more
-	// information.
-	gopb.UnimplementedCedarSystemMetricsServer
-}
-
-// NewMockMetricsServer will return a new MockMetricsServer listening on a port
-// near the provided port.
-func NewMockMetricsServer(ctx context.Context, basePort int) (*MockMetricsServer, error) {
-	srv := &MockMetricsServer{}
-	port := GetPortNumber(basePort)
-
-	srv.DialOpts = timber.DialCedarOptions{
-		BaseAddress: "localhost",
-		RPCPort:     strconv.Itoa(port),
-	}
-
-	lis, err := net.Listen("tcp", srv.Address())
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	s := grpc.NewServer()
-	gopb.RegisterCedarSystemMetricsServer(s, srv)
-
-	go func() {
-		_ = s.Serve(lis)
-	}()
-	go func() {
-		<-ctx.Done()
-		s.Stop()
-	}()
-	return srv, nil
-}
-
-// NewMockMetricsServerWithDialOpts will return a new MockMetricsServer
-// listening on the port and URL from the specified dial options.
-func NewMockMetricsServerWithDialOpts(ctx context.Context, opts timber.DialCedarOptions) (*MockMetricsServer, error) {
-	srv := &MockMetricsServer{}
-	srv.DialOpts = opts
-	lis, err := net.Listen("tcp", srv.Address())
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	s := grpc.NewServer()
-	gopb.RegisterCedarSystemMetricsServer(s, srv)
-
-	go func() {
-		_ = s.Serve(lis)
-	}()
-	go func() {
-		<-ctx.Done()
-		s.Stop()
-	}()
-	return srv, nil
-}
-
-// Address returns the address the server is listening on.
-func (ms *MockMetricsServer) Address() string {
-	return fmt.Sprintf("%s:%s", ms.DialOpts.BaseAddress, ms.DialOpts.RPCPort)
-}
-
-// CreateSystemMetricsRecord returns an error if CreateErr is true, otherwise
-// it sets Create to the input.
-func (ms *MockMetricsServer) CreateSystemMetricsRecord(_ context.Context, in *gopb.SystemMetrics) (*gopb.SystemMetricsResponse, error) {
-	ms.Mu.Lock()
-	defer ms.Mu.Unlock()
-
-	if ms.CreateErr {
-		return nil, errors.New("create error")
-	}
-	ms.Create = in
-	return &gopb.SystemMetricsResponse{
-		Id: "ID",
-	}, nil
-}
-
-// AddSystemMetrics returns an error if AddErr is true, otherwise it adds the
-// input to Data.
-func (ms *MockMetricsServer) AddSystemMetrics(_ context.Context, in *gopb.SystemMetricsData) (*gopb.SystemMetricsResponse, error) {
-	ms.Mu.Lock()
-	defer ms.Mu.Unlock()
-
-	if ms.AddErr {
-		return nil, errors.New("add error")
-	}
-	if ms.Data == nil {
-		ms.Data = make(map[string][]*gopb.SystemMetricsData)
-	}
-	ms.Data[in.Type] = append(ms.Data[in.Type], in)
-	return &gopb.SystemMetricsResponse{
-		Id: "ID",
-	}, nil
-}
-
-// StreamSystemMetrics, when receiving from the stream, returns an error if
-// if StreamErr is true, otherwise it adds the stream input to StreamData.
-func (ms *MockMetricsServer) StreamSystemMetrics(stream gopb.CedarSystemMetrics_StreamSystemMetricsServer) error {
-	ctx := stream.Context()
-	id := ""
-
-	ms.Mu.Lock()
-	if ms.StreamData == nil {
-		ms.StreamData = map[string][]*gopb.SystemMetricsData{}
-	}
-	ms.Mu.Unlock()
-
-	for {
-		if err := ctx.Err(); err != nil {
-			return errors.Wrap(err, "mock stream context")
-		}
-
-		chunk, err := stream.Recv()
-		if err == io.EOF {
-			return stream.SendAndClose(&gopb.SystemMetricsResponse{Id: id})
-		}
-		if err != nil {
-			return errors.Wrapf(err, "streaming for ID '%s'", id)
-		}
-
-		if id == "" {
-			id = chunk.Id
-		} else if chunk.Id != id {
-			return errors.Errorf("chunk ID '%s' doesn't match ID '%s'", chunk.Id, id)
-		}
-
-		ms.Mu.Lock()
-		if ms.StreamErr {
-			ms.Mu.Unlock()
-			return errors.New("stream error")
-		}
-		ms.StreamData[chunk.Type] = append(ms.StreamData[chunk.Type], chunk)
-		ms.Mu.Unlock()
-	}
-}
-
-// CloseMetrics returns an error if CloseErr is true, otherwise sets Close to
-// the input.
-func (ms *MockMetricsServer) CloseMetrics(_ context.Context, in *gopb.SystemMetricsSeriesEnd) (*gopb.SystemMetricsResponse, error) {
-	ms.Mu.Lock()
-	defer ms.Mu.Unlock()
-
-	if ms.CloseErr {
-		return nil, errors.New("close error")
-	}
-	ms.Close = in
-	return &gopb.SystemMetricsResponse{
-		Id: "ID",
-	}, nil
 }
 
 // MockTestResultsServer sets up a mock Cedar server for sending test results

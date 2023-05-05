@@ -89,9 +89,6 @@ tasks:
     name: lint-perf
   - <<: *run-build
     tags: ["report"]
-    name: lint-systemmetrics
-  - <<: *run-build
-    tags: ["report"]
     name: lint-testresults
   - <<: *run-build
     tags: ["report"]
@@ -120,9 +117,6 @@ tasks:
   - <<: *run-build
     tags: ["test"]
     name: test-perf
-  - <<: *run-build
-    tags: ["test"]
-    name: test-systemmetrics
   - <<: *run-build
     tags: ["test"]
     name: test-testresults
