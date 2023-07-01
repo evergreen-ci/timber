@@ -15,7 +15,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require google.golang.org/protobuf v1.28.1
+require google.golang.org/protobuf v1.31.0
 
 require (
 	github.com/PuerkitoBio/rehttp v1.1.0 // indirect
