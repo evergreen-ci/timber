@@ -50,13 +50,14 @@ type SortBy struct {
 // FilterOptions represent the parameters for filtering, sorting, and
 // paginating test results. These options are only supported on select routes.
 type FilterOptions struct {
-	TestName  string        `json:"test_name,omitempty"`
-	Statuses  []string      `json:"statuses,omitempty"`
-	GroupID   string        `json:"group_id,omitempty"`
-	Sort      []SortBy      `json:"sort"`
-	Limit     int           `json:"limit,omitempty"`
-	Page      int           `json:"page,omitempty"`
-	BaseTasks []TaskOptions `json:"base_tasks,omitempty"`
+	TestName            string        `json:"test_name,omitempty"`
+	ExcludeDisplayNames bool          `json:"exclude_display_names"`
+	Statuses            []string      `json:"statuses,omitempty"`
+	GroupID             string        `json:"group_id,omitempty"`
+	Sort                []SortBy      `json:"sort"`
+	Limit               int           `json:"limit,omitempty"`
+	Page                int           `json:"page,omitempty"`
+	BaseTasks           []TaskOptions `json:"base_tasks,omitempty"`
 }
 
 type requestPayload struct {
