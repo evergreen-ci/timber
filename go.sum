@@ -82,8 +82,6 @@ github.com/evergreen-ci/aviation v0.0.0-20220405151811-ff4a78a4297c/go.mod h1:5A
 github.com/evergreen-ci/gimlet v0.0.0-20220401150826-5898de01dbd8/go.mod h1:LfnJ3oYEVFUHwIPoAotvn9bbtAT+lAaCpH5YYnyxluk=
 github.com/evergreen-ci/gimlet v0.0.0-20220401151443-33c830c51cee h1:+4jp62usQsVoZb/KTYT7DetD04hbcXPjP/XhjJq0zws=
 github.com/evergreen-ci/gimlet v0.0.0-20220401151443-33c830c51cee/go.mod h1:NqXYQ2lPMU7dY33a4ZrqXJKQ3ZY8IZru8H/rpY0hrxs=
-github.com/evergreen-ci/juniper v0.0.0-20230119161755-1aced8006202 h1:MK0NYjJ1XHqvXMKwwV7uJC/6vOsLDuSUDoWmy9wahck=
-github.com/evergreen-ci/juniper v0.0.0-20230119161755-1aced8006202/go.mod h1:LewZWRe1jV5XJhNksoB0rpvlwsg+D6M3yvzIFJZ8OJs=
 github.com/evergreen-ci/juniper v0.0.0-20230901183147-c805ea7351aa h1:42kGqVm2tQOVtB/gj7AgOPPq3lBiuGUgLA0NOSpd2EM=
 github.com/evergreen-ci/juniper v0.0.0-20230901183147-c805ea7351aa/go.mod h1:LewZWRe1jV5XJhNksoB0rpvlwsg+D6M3yvzIFJZ8OJs=
 github.com/evergreen-ci/negroni v1.0.1-0.20211028183800-67b6d7c2c035 h1:oVU/ni/sRq+GAogUMLa7LBGtvVHMVLbisuytxBC5KaY=
