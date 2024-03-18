@@ -5,18 +5,17 @@
 Overview
 --------
 
-Timber implements a `grip Sender` backed by Cedar Buildlogger.
+The Timber library is used by Evergreen to send test results and
+performance data to Cedar, and contains configuration utilities
+for connecting to Cedar.
 
 See `cedar <https://github.com/evergreen-ci/cedar>`_ and
-`grip <https://github.com/mongodb/grip>`_ for more information.
+`poplar <https://github.com/evergreen-ci/poplar>`_ for more information.
 
+It also implements a grip Sender backed by Cedar Buildlogger which is
+still used for some log storage purposes by Evergreen.
 
-Motivation
-----------
-
-Timber enables seamless logging when running tests in
-`Evergreen <https://github.com/evergreen-ci/evergreen>`_.
-
+See `grip <https://github.com/mongodb/grip>`_ for more information. 
 
 Features
 --------
