@@ -3,7 +3,7 @@ module github.com/evergreen-ci/timber
 go 1.20
 
 require (
-	github.com/evergreen-ci/aviation v0.0.0-20240508171140-fe493a18dd3a
+	github.com/evergreen-ci/aviation v0.0.0-20240509141021-0e3a1c91cc79
 	github.com/evergreen-ci/juniper v0.0.0-20230901183147-c805ea7351aa
 	github.com/evergreen-ci/utility v0.0.0-20220404192535-d16eb64796e6
 	github.com/mongodb/grip v0.0.0-20220401165023-6a1d9bb90c21

@@ -79,6 +79,8 @@ github.com/envoyproxy/go-control-plane v0.10.2-0.20220325020618-49ff273808a1/go.
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/evergreen-ci/aviation v0.0.0-20240508171140-fe493a18dd3a h1:GHyGBktY8+plnfbWB24QK1E9Broh/39fgV/UVyBmbAs=
 github.com/evergreen-ci/aviation v0.0.0-20240508171140-fe493a18dd3a/go.mod h1:FHakIwVQTIlzHXLaxBq3k0E/MJF1IYppJ9TiihlSBeA=
+github.com/evergreen-ci/aviation v0.0.0-20240509141021-0e3a1c91cc79 h1:pIQpqil9BYFhZkBGZ7CsGQ7/Kz4GLvnFp6TDV4lbJ6s=
+github.com/evergreen-ci/aviation v0.0.0-20240509141021-0e3a1c91cc79/go.mod h1:aUvipiBrechcLJyZx2IOp43HRAEM9iSNn4oLIWBQ4NQ=
 github.com/evergreen-ci/gimlet v0.0.0-20220401150826-5898de01dbd8/go.mod h1:LfnJ3oYEVFUHwIPoAotvn9bbtAT+lAaCpH5YYnyxluk=
 github.com/evergreen-ci/gimlet v0.0.0-20220401151443-33c830c51cee h1:+4jp62usQsVoZb/KTYT7DetD04hbcXPjP/XhjJq0zws=
 github.com/evergreen-ci/gimlet v0.0.0-20220401151443-33c830c51cee/go.mod h1:NqXYQ2lPMU7dY33a4ZrqXJKQ3ZY8IZru8H/rpY0hrxs=
