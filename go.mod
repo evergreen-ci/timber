@@ -10,12 +10,11 @@ require (
 	github.com/peterhellberg/link v1.2.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.1
-	go.mongodb.org/mongo-driver v1.11.1
 	google.golang.org/grpc v1.51.0
 	gopkg.in/yaml.v2 v2.4.0
+	go.mongodb.org/mongo-driver/v2 v2.0.0-beta2
+	google.golang.org/protobuf v1.28.1
 )
-
-require google.golang.org/protobuf v1.28.1
 
 require (
 	github.com/PuerkitoBio/rehttp v1.1.0 // indirect
@@ -52,7 +51,7 @@ require (
 	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
 	golang.org/x/oauth2 v0.0.0-20211005180243-6b3c2da341f1 // indirect
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
-	golang.org/x/text v0.4.0 // indirect
+	golang.org/x/text v0.18.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20200825200019-8632dd797987 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
