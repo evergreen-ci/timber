@@ -1,7 +1,8 @@
 ======================================
 ``timber`` -- Cedar Buildlogger Client
 ======================================
-
+Timber is now deprecated and is no longer being maintained.
+--------
 Overview
 --------
 
